@@ -1344,6 +1344,45 @@ modeEraserBtn.addEventListener('click', () => setMode('eraser'));
 let isDrawing = false;
 let lastX = 0, lastY = 0;
 let currentStrokeStartTime = 0;
+let strokeTraveledDist = 0;
+
+/* ---- ボールペン／万年筆っぽい書き味 ----
+   描き始め・描き終わりだけ少し太く、柔らかい（にじんだ）点にする。
+   ペンモードのみ有効（消しゴムは均一なまま）。 */
+const PEN_BLOB_SCALE = 1.55;  // 描き始め・描き終わりの太さの倍率
+const PEN_TAPER_DIST = 22;    // この距離(キャンバスpx)で通常の太さへ戻す
+const PEN_BLOB_SOFT_BLUR = 1.6; // にじみの強さ
+
+function widthMultiplierAt(dist) {
+  if (dist >= PEN_TAPER_DIST) return 1;
+  const t = dist / PEN_TAPER_DIST;
+  const eased = 1 - Math.pow(1 - t, 2); // イーズアウトで滑らかに戻す
+  return PEN_BLOB_SCALE - (PEN_BLOB_SCALE - 1) * eased;
+}
+
+function hexToRgba(hex, alpha) {
+  const h = (hex || '#1a1a1a').replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const num = parseInt(full, 16) || 0;
+  const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/* 描き始め／描き終わりの「インク溜まり」を柔らかいグラデーションで表現 */
+function drawPenBlob(x, y, radius) {
+  const color = penColorInput.value;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.65, color);
+  grad.addColorStop(1, hexToRgba(color, 0));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
 
 /* ---- ピンチ開始時の誤描画を取り消す ----
    2本指ズームをしようとした時、指が完全に同時には着地しないため、
@@ -1367,25 +1406,45 @@ drawCanvas.addEventListener('pointerdown', (e) => {
   pushUndo();
   isDrawing = true;
   currentStrokeStartTime = performance.now();
+  strokeTraveledDist = 0;
   const p = canvasPos(e);
   lastX = p.x; lastY = p.y;
   drawCanvas.setPointerCapture(e.pointerId);
 
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, (mode === 'eraser' ? getEraserSize() : getPenSize()) / 2, 0, Math.PI * 2);
   applyStrokeStyle();
-  ctx.fill();
+  if (mode === 'pen') {
+    drawPenBlob(p.x, p.y, (getPenSize() / 2) * PEN_BLOB_SCALE);
+  } else {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, getEraserSize() / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }, { passive: false });
 
 drawCanvas.addEventListener('pointermove', (e) => {
   if (!isDrawing) return;
   if (e.cancelable) e.preventDefault();
   const p = canvasPos(e);
+  const segLen = Math.hypot(p.x - lastX, p.y - lastY);
+  const segStartDist = strokeTraveledDist;
+  strokeTraveledDist += segLen;
+
   ctx.beginPath();
   ctx.moveTo(lastX, lastY);
   ctx.lineTo(p.x, p.y);
   applyStrokeStyle();
+
+  if (mode === 'pen') {
+    const mult = widthMultiplierAt(segStartDist + segLen / 2);
+    ctx.lineWidth = getPenSize() * mult;
+    if (mult > 1.02) {
+      ctx.shadowColor = penColorInput.value;
+      ctx.shadowBlur = (mult - 1) * PEN_BLOB_SOFT_BLUR * 3;
+    }
+  }
+
   ctx.stroke();
+  ctx.shadowBlur = 0;
   lastX = p.x; lastY = p.y;
 }, { passive: false });
 
@@ -1403,6 +1462,9 @@ function cancelStrokeAsAccidental() {
 function endStroke() {
   if (!isDrawing) return;
   isDrawing = false;
+  if (mode === 'pen') {
+    drawPenBlob(lastX, lastY, (getPenSize() / 2) * PEN_BLOB_SCALE);
+  }
   persistDrawing();
 }
 drawCanvas.addEventListener('pointerup', endStroke);
