@@ -1388,20 +1388,29 @@ function hexToRgba(hex, alpha) {
 function drawPenBlob(x, y, radius) {
   const color = penColorInput.value;
 
-  // ペンサイズに対して少し小さめのインク溜まり
-  const blobRadius = radius * 0.5 + 1;
+  // ペンサイズに応じたインク溜まり
+  const blobRadius =
+    radius < 4
+      ? radius * 0.8
+      : radius * 0.5 + 1;
 
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
 
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, blobRadius);
+  // 細いペンはぼかしなし、太いペンだけグラデーション
+  if (radius < 4) {
+    ctx.fillStyle = color;
+  } else {
+    const fade = Math.min(0.5, blobRadius * 0.08);
 
-  // ほとんどベタ塗りで、外周だけ少しぼかす
-  grad.addColorStop(0, color);
-  grad.addColorStop(0.88, color);
-  grad.addColorStop(1, hexToRgba(color, 0));
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, blobRadius);
+    grad.addColorStop(0, color);
+    grad.addColorStop((blobRadius - fade) / blobRadius, color);
+    grad.addColorStop(1, hexToRgba(color, 0));
 
-  ctx.fillStyle = grad;
+    ctx.fillStyle = grad;
+  }
+
   ctx.beginPath();
   ctx.arc(x, y, blobRadius, 0, Math.PI * 2);
   ctx.fill();
