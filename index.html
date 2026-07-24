@@ -2,17 +2,35 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>HTMLスケッチブック</title>
 <style>
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; height: 100%;
+    margin: 0; height: 100%; width: 100%;
     background: #555555;
-    display: flex; align-items: center; justify-content: center;
     font-family: sans-serif;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* ================= ズーム可能な舞台 ================= */
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+  }
+  .zoom-layer {
+    transform-origin: center center;
+    will-change: transform;
+    touch-action: none;
   }
 
   .book-wrap {
@@ -20,6 +38,7 @@
     height: 860px;
     perspective: 2000px;
     position: relative;
+    touch-action: none;
   }
 
   .notebook {
@@ -28,6 +47,7 @@
     background-color: #fdfdf7;
     box-shadow: inset 0 0 16px rgba(0,0,0,0.08), 0 10px 25px rgba(0,0,0,0.35);
     overflow: hidden;
+    touch-action: none;
   }
   .notebook.hidden { display: none; }
   .notebook.right-page,
@@ -37,13 +57,12 @@
       repeating-linear-gradient(to right,  transparent 0px, transparent 29px, #848484 30px);
   }
 
-  /* ルーズリーフの穴を最上位レイヤーに */
   .notebook::before {
     content: "";
     position: absolute;
     top: 14px; bottom: 14px;
     width: 20px;
-    z-index: 100; /* 最上位に設定 */
+    z-index: 100;
     pointer-events: none;
     background-image: radial-gradient(circle 12px, #b6b4b0 11px, transparent 2px);
     background-repeat: repeat-y;
@@ -56,6 +75,8 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(135deg, #6b3f2a, #8a5a3b);
+    background-size: cover;
+    background-position: center;
     border-radius: 4px 10px 10px 4px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     cursor: pointer;
@@ -77,9 +98,48 @@
     right: 0; top: 0; bottom: 0;
     width: 45%;
     background: linear-gradient(to right, transparent, rgba(255,255,255,0.06));
+    z-index: 1;
   }
   .cover.open { transform: rotateY(-165deg); }
   .cover.no-anim { transition: none; }
+
+  .cover-shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.45));
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .cover.has-image .cover-shade { opacity: 1; }
+
+  .cover-title {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .cover.has-image .cover-title {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  }
+
+  .cover-replace-btn {
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.5);
+    color: #f0e6d6;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 7px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background .2s;
+    z-index: 20;
+  }
+  .cover-replace-btn:hover { background: rgba(255,255,255,0.3); }
 
   .blackout {
     position: fixed; inset: 0;
@@ -119,13 +179,13 @@
   .notebook.at-start .page-edge-left { opacity: 0; }
   .notebook.hover-left, .notebook.hover-right { cursor: pointer; }
 
-  /* ペイントを画像より上のレイヤーに設定 */
   .draw-canvas {
     position: absolute;
     inset: 0;
     width: 100%; height: 100%;
-    z-index: 50; /* フレームより上に配置 */
+    z-index: 50;
     pointer-events: none;
+    touch-action: none;
   }
   .notebook.drawing-mode .draw-canvas { pointer-events: auto; cursor: crosshair; }
   .notebook.drawing-mode .frame { pointer-events: none; }
@@ -166,12 +226,15 @@
   .thumb-item.active { border-color: #4a90e2; }
   .thumb-item.cover-thumb {
     background: linear-gradient(135deg, #6b3f2a, #8a5a3b);
+    background-size: cover;
+    background-position: center;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #f0e6d6;
     font-size: 8px;
     letter-spacing: 1px;
+    text-align: center;
   }
   .thumb-item.dragging {
     opacity: 0.5;
@@ -363,7 +426,6 @@
     opacity: 0.5;
   }
 
-  /* トリミング用のマスク */
   .crop-mask {
     position: absolute;
     inset: 0;
@@ -387,9 +449,9 @@
     background: transparent;
     cursor: move;
     pointer-events: auto;
+    touch-action: none;
   }
 
-  /* トリミング用ハンドル */
   .crop-handle {
     position: absolute;
     width: 14px; height: 14px;
@@ -398,6 +460,7 @@
     border-radius: 50%;
     pointer-events: auto;
     z-index: 5;
+    touch-action: none;
   }
   .crop-handle.nw { left: -7px; top: -7px; cursor: nwse-resize; }
   .crop-handle.ne { right: -7px; top: -7px; cursor: nesw-resize; }
@@ -433,6 +496,7 @@
     border-radius: 50%;
     display: none;
     z-index: 5;
+    touch-action: none;
   }
   .frame.selected .handle { display: block; }
   .frame.cropping .handle { display: none !important; }
@@ -456,7 +520,6 @@
   .frame.cropping .toolbar { display: none !important; }
   .frame.editing-frame .toolbar { display: none !important; }
 
-  /* トリミング確定ボタン */
   .crop-controls {
     position: absolute;
     left: 50%; top: 100%;
@@ -469,7 +532,7 @@
     z-index: 6;
   }
   .frame.cropping .crop-controls { display: flex; }
-  
+
   .crop-control-btn {
     width: 32px; height: 32px;
     border-radius: 50%;
@@ -498,7 +561,7 @@
     user-select: none;
   }
   .tool-btn:hover { background: #4a90e2; }
-  .tool-rotate { cursor: grab; }
+  .tool-rotate { cursor: grab; touch-action: none; }
   .tool-delete:hover { background: #c0392b; }
   .tool-crop:hover { background: #27ae60; }
 
@@ -516,7 +579,6 @@
   }
   .add-text-btn:hover { background: #357abd; }
 
-  /* ================= 見開きプレビュー ================= */
   .spread-view {
     position: fixed;
     inset: 0;
@@ -554,12 +616,15 @@
   .spread-page.empty:hover { transform: none; }
   .spread-page.cover-page {
     background: linear-gradient(135deg, #6b3f2a, #8a5a3b);
+    background-size: cover;
+    background-position: center;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #f0e6d6;
     font-size: 14px;
     letter-spacing: 2px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
   }
 
   .spread-inner {
@@ -648,14 +713,22 @@
 </head>
 <body>
 
-<div class="book-wrap">
-  <div class="notebook right-page" id="notebook">
-    <canvas class="draw-canvas" id="drawCanvas" width="640" height="860"></canvas>
-    <div class="hint" id="hint">ここに画像をドラッグ＆ドロップ／クリックでテキスト追加</div>
-    <div class="page-edge page-edge-left">‹</div>
-    <div class="page-edge page-edge-right">›</div>
+<div class="stage" id="stage">
+  <div class="zoom-layer" id="zoomLayer">
+    <div class="book-wrap">
+      <div class="notebook right-page" id="notebook">
+        <canvas class="draw-canvas" id="drawCanvas" width="640" height="860"></canvas>
+        <div class="hint" id="hint">ここに画像をドラッグ＆ドロップ／クリックでテキスト追加</div>
+        <div class="page-edge page-edge-left">‹</div>
+        <div class="page-edge page-edge-right">›</div>
+      </div>
+      <div class="cover" id="cover">
+        <div class="cover-shade"></div>
+        <span class="cover-title">SKETCH BOOK</span>
+        <div class="cover-replace-btn" id="coverReplaceBtn">差し替え</div>
+      </div>
+    </div>
   </div>
-  <div class="cover" id="cover">SKETCH BOOK</div>
 </div>
 
 <div class="tool-panel" id="toolPanel">
@@ -680,10 +753,10 @@
 
 <input type="file" id="imageImportInput" accept="image/*" multiple style="display:none;">
 <input type="file" id="jsonImportInput" accept="application/json,.json" style="display:none;">
+<input type="file" id="coverImageInput" accept="image/*" style="display:none;">
 
 <div class="thumb-panel" id="thumbPanel"></div>
 
-<!-- 見開きプレビュー -->
 <div class="spread-view" id="spreadView">
   <div class="spread-close-btn" id="spreadCloseBtn">✕ 閉じる</div>
   <div class="spread-nav spread-nav-prev" id="spreadPrevBtn">‹</div>
@@ -702,6 +775,8 @@
 
 <script>
 const cover = document.getElementById('cover');
+const stage = document.getElementById('stage');
+const zoomLayer = document.getElementById('zoomLayer');
 const notebook = document.getElementById('notebook');
 const blackout = document.getElementById('blackout');
 const hint = document.getElementById('hint');
@@ -724,6 +799,9 @@ const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const jsonImportInput = document.getElementById('jsonImportInput');
 
+const coverReplaceBtn = document.getElementById('coverReplaceBtn');
+const coverImageInput = document.getElementById('coverImageInput');
+
 const spreadViewBtn = document.getElementById('spreadViewBtn');
 const spreadView = document.getElementById('spreadView');
 const spreadLeftPage = document.getElementById('spreadLeftPage');
@@ -743,14 +821,131 @@ const STORAGE_KEY = 'sketchbook-book-v3';
 const EDGE_SIZE = 46;
 const THUMB_W = 74, THUMB_H = 100;
 const SPREAD_PAGE_W = 320;
+const BOOK_W = 640, BOOK_H = 860;
 
 let pages = [];
 let currentIndex = 0;
 let currentSpread = -1;
+let coverImageDataUrl = null;
 
-// トリミング用の変数
 let croppingFrame = null;
 let cropStartData = null;
+
+/* ============================================================
+   ズーム・パン（無限ズーム対応の独自実装）
+   ============================================================ */
+let bookBaseScale = 1;
+let bookUserScale = 1;
+let panX = 0, panY = 0;
+const MIN_USER_SCALE = 1;
+const MAX_USER_SCALE = 8;
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function getViewScale() { return bookBaseScale * bookUserScale; }
+
+function computeBaseScale() {
+  const margin = 0.94;
+  const availW = stage.clientWidth;
+  const availH = stage.clientHeight;
+  bookBaseScale = Math.min(availW / BOOK_W, availH / BOOK_H) * margin;
+  clampPan();
+  applyZoomTransform();
+}
+
+function clampPan() {
+  const maxPanX = stage.clientWidth / 2;
+  const maxPanY = stage.clientHeight / 2;
+  panX = clamp(panX, -maxPanX, maxPanX);
+  panY = clamp(panY, -maxPanY, maxPanY);
+}
+
+function applyZoomTransform() {
+  const total = getViewScale();
+  zoomLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${total})`;
+}
+
+function screenToNotebook(clientX, clientY) {
+  const rect = notebook.getBoundingClientRect();
+  const s = getViewScale();
+  return {
+    x: (clientX - rect.left) / s,
+    y: (clientY - rect.top) / s
+  };
+}
+
+window.addEventListener('resize', computeBaseScale);
+window.addEventListener('orientationchange', () => setTimeout(computeBaseScale, 200));
+
+/* 2本指ピンチズーム・パン */
+const touchPointers = new Map();
+let isPinching = false;
+let pinchStartDist = 0;
+let pinchStartUserScale = 1;
+let pinchStartMid = { x: 0, y: 0 };
+let pinchStartPan = { x: 0, y: 0 };
+let activeFrameDragEnd = null;
+
+function distOf(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+function midOf(p1, p2) { return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }; }
+
+window.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touchPointers.size === 2) {
+    const pts = [...touchPointers.values()];
+    pinchStartDist = distOf(pts[0], pts[1]) || 1;
+    pinchStartUserScale = bookUserScale;
+    pinchStartMid = midOf(pts[0], pts[1]);
+    pinchStartPan = { x: panX, y: panY };
+    isPinching = true;
+    if (isDrawing) endStroke();
+    if (activeFrameDragEnd) { const fn = activeFrameDragEnd; activeFrameDragEnd = null; fn(); }
+  }
+}, { capture: true });
+
+window.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'touch') return;
+  if (!touchPointers.has(e.pointerId)) return;
+  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (isPinching && touchPointers.size === 2) {
+    if (e.cancelable) e.preventDefault();
+    const pts = [...touchPointers.values()];
+    const newDist = distOf(pts[0], pts[1]);
+    const newMid = midOf(pts[0], pts[1]);
+    const scaleFactor = newDist / pinchStartDist;
+    bookUserScale = clamp(pinchStartUserScale * scaleFactor, MIN_USER_SCALE, MAX_USER_SCALE);
+    panX = pinchStartPan.x + (newMid.x - pinchStartMid.x);
+    panY = pinchStartPan.y + (newMid.y - pinchStartMid.y);
+    applyZoomTransform();
+  }
+}, { capture: true, passive: false });
+
+function releaseTouchPointer(e) {
+  if (e.pointerType !== 'touch') return;
+  touchPointers.delete(e.pointerId);
+  if (touchPointers.size === 0) {
+    isPinching = false;
+    clampPan();
+    applyZoomTransform();
+  }
+}
+window.addEventListener('pointerup', releaseTouchPointer, { capture: true });
+window.addEventListener('pointercancel', releaseTouchPointer, { capture: true });
+
+/* デスクトップ：ホイールでもズーム／ダブルクリックでリセット */
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const delta = -e.deltaY * 0.0015;
+  bookUserScale = clamp(bookUserScale * (1 + delta), MIN_USER_SCALE, MAX_USER_SCALE);
+  applyZoomTransform();
+}, { passive: false });
+
+stage.addEventListener('dblclick', (e) => {
+  if (e.target.closest('.frame')) return;
+  bookUserScale = 1;
+  panX = 0; panY = 0;
+  applyZoomTransform();
+});
 
 /* ============================================================
    Undo
@@ -762,7 +957,7 @@ function snapshotStateString() {
   if (!isOnCover) {
     pages[currentIndex].frames = collectFramesFromDOM();
   }
-  return JSON.stringify({ pages, currentIndex, isOnCover });
+  return JSON.stringify({ pages, currentIndex, isOnCover, coverImageDataUrl });
 }
 
 function pushUndo() {
@@ -777,6 +972,8 @@ function undo() {
   pages = snapshot.pages;
   currentIndex = Math.min(snapshot.currentIndex, pages.length - 1);
   isOnCover = snapshot.isOnCover || false;
+  coverImageDataUrl = snapshot.coverImageDataUrl || null;
+  applyCoverImage();
 
   if (isOnCover) {
     showCover();
@@ -784,9 +981,9 @@ function undo() {
     hideCover();
     renderPage(currentIndex);
   }
-  
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover, coverImageDataUrl }));
   } catch (e) { /* ignore */ }
   renderThumbnails();
   updateUndoButtonState();
@@ -823,9 +1020,8 @@ imageImportInput.addEventListener('change', (e) => {
   const files = [...e.target.files];
   if (!files.length) return;
 
-  const rect = notebook.getBoundingClientRect();
-  const centerX = rect.width / 2;
-  const centerY = rect.height / 2;
+  const centerX = BOOK_W / 2;
+  const centerY = BOOK_H / 2;
 
   files.forEach((file, i) => {
     if (!file.type.startsWith('image/')) return;
@@ -839,6 +1035,39 @@ imageImportInput.addEventListener('change', (e) => {
 });
 
 /* ============================================================
+   表紙画像の差し替え
+   ============================================================ */
+coverReplaceBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  coverImageInput.value = '';
+  coverImageInput.click();
+});
+coverReplaceBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+coverImageInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    pushUndo();
+    coverImageDataUrl = ev.target.result;
+    applyCoverImage();
+    persistAll();
+  };
+  reader.readAsDataURL(file);
+});
+
+function applyCoverImage() {
+  if (coverImageDataUrl) {
+    cover.style.backgroundImage = `url(${coverImageDataUrl})`;
+    cover.classList.add('has-image');
+  } else {
+    cover.style.backgroundImage = '';
+    cover.classList.remove('has-image');
+  }
+}
+
+/* ============================================================
    JSONエクスポート／インポート
    ============================================================ */
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -850,12 +1079,13 @@ exportBtn.addEventListener('click', () => {
   }
 
   const exportData = {
-    formatVersion: 1,
+    formatVersion: 2,
     exportedAt: new Date().toISOString(),
     opened,
     currentIndex,
     pages,
-    isOnCover
+    isOnCover,
+    coverImageDataUrl
   };
 
   let jsonStr;
@@ -914,6 +1144,8 @@ jsonImportInput.addEventListener('change', (e) => {
     currentIndex = Math.min(data.currentIndex || 0, pages.length - 1);
     opened = data.opened !== undefined ? !!data.opened : true;
     isOnCover = data.isOnCover || false;
+    coverImageDataUrl = data.coverImageDataUrl || null;
+    applyCoverImage();
 
     if (opened) {
       cover.classList.add('no-anim', 'open');
@@ -929,7 +1161,7 @@ jsonImportInput.addEventListener('change', (e) => {
       hideCover();
       renderPage(currentIndex);
     }
-    
+
     persistAll();
     alert('読み込みが完了しました。');
   };
@@ -975,6 +1207,8 @@ function canvasPos(e) {
 
 drawCanvas.addEventListener('pointerdown', (e) => {
   if (mode === 'select' || isOnCover) return;
+  if (isPinching) return;
+  if (e.cancelable) e.preventDefault();
   pushUndo();
   isDrawing = true;
   const p = canvasPos(e);
@@ -985,10 +1219,11 @@ drawCanvas.addEventListener('pointerdown', (e) => {
   ctx.arc(p.x, p.y, (mode === 'eraser' ? getEraserSize() : getPenSize()) / 2, 0, Math.PI * 2);
   applyStrokeStyle();
   ctx.fill();
-});
+}, { passive: false });
 
 drawCanvas.addEventListener('pointermove', (e) => {
   if (!isDrawing) return;
+  if (e.cancelable) e.preventDefault();
   const p = canvasPos(e);
   ctx.beginPath();
   ctx.moveTo(lastX, lastY);
@@ -996,7 +1231,7 @@ drawCanvas.addEventListener('pointermove', (e) => {
   applyStrokeStyle();
   ctx.stroke();
   lastX = p.x; lastY = p.y;
-});
+}, { passive: false });
 
 function endStroke() {
   if (!isDrawing) return;
@@ -1073,7 +1308,7 @@ function persistAll() {
     pages[currentIndex].frames = collectFramesFromDOM();
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover, coverImageDataUrl }));
   } catch (e) {
     console.warn('保存に失敗しました（容量オーバーの可能性）', e);
     alert('データ容量が大きすぎて保存できませんでした。画像や手書きの量を減らしてください。');
@@ -1091,6 +1326,7 @@ function restoreAll() {
         currentIndex = Math.min(data.currentIndex || 0, pages.length - 1);
         opened = !!data.opened;
         isOnCover = !!data.isOnCover;
+        coverImageDataUrl = data.coverImageDataUrl || null;
         return;
       }
     } catch (e) { /* ignore */ }
@@ -1099,6 +1335,7 @@ function restoreAll() {
   currentIndex = 0;
   opened = false;
   isOnCover = false;
+  coverImageDataUrl = null;
 }
 
 /* ============================================================
@@ -1109,7 +1346,7 @@ function showCover() {
     pages[currentIndex].frames = collectFramesFromDOM();
     pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
   }
-  
+
   isOnCover = true;
   notebook.classList.add('hidden');
   cover.classList.remove('open', 'no-anim');
@@ -1152,7 +1389,9 @@ cover.addEventListener('click', (e) => {
 
 window.addEventListener('DOMContentLoaded', () => {
   restoreAll();
-  
+  applyCoverImage();
+  computeBaseScale();
+
   if (isOnCover) {
     showCover();
   } else {
@@ -1163,7 +1402,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     renderPage(currentIndex);
   }
-  
+
   renderThumbnails();
   updateUndoButtonState();
 });
@@ -1278,6 +1517,9 @@ function renderThumbnails() {
   const coverThumb = document.createElement('div');
   coverThumb.className = 'thumb-item cover-thumb' + (isOnCover ? ' active' : '');
   coverThumb.textContent = 'SKETCH BOOK';
+  if (coverImageDataUrl) {
+    coverThumb.style.backgroundImage = `url(${coverImageDataUrl})`;
+  }
   coverThumb.addEventListener('click', () => {
     if (isOnCover) return;
     showCover();
@@ -1353,7 +1595,7 @@ function renderThumbnails() {
         persistAll();
         return;
       }
-      
+
       if (index === currentIndex) return;
       pages[currentIndex].frames = collectFramesFromDOM();
       pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
@@ -1376,15 +1618,15 @@ function renderThumbnails() {
     item.addEventListener('dragover', (e) => {
       e.preventDefault();
       if (!draggedThumb || draggedThumb === item) return;
-      
+
       const targetIndex = parseInt(item.dataset.index);
       if (draggedIndex === targetIndex) return;
 
       pushUndo();
-      
+
       const [movedPage] = pages.splice(draggedIndex, 1);
       pages.splice(targetIndex, 0, movedPage);
-      
+
       if (!isOnCover) {
         if (currentIndex === draggedIndex) {
           currentIndex = targetIndex;
@@ -1394,7 +1636,7 @@ function renderThumbnails() {
           currentIndex++;
         }
       }
-      
+
       draggedIndex = targetIndex;
       persistAll();
     });
@@ -1423,7 +1665,7 @@ function maxSpreadIndex() {
 
 function openSpreadView() {
   if (!opened && !isOnCover) return;
-  
+
   if (isOnCover) {
     currentSpread = -1;
   } else {
@@ -1486,6 +1728,7 @@ function buildPagePreview(container, pageIndex) {
   container.innerHTML = '';
   container.onclick = null;
   container.classList.remove('left-page', 'right-page', 'cover-page');
+  container.style.backgroundImage = '';
 
   if (pageIndex === -2) {
     container.classList.add('empty');
@@ -1496,6 +1739,9 @@ function buildPagePreview(container, pageIndex) {
     container.classList.remove('empty');
     container.classList.add('cover-page');
     container.textContent = 'SKETCH BOOK';
+    if (coverImageDataUrl) {
+      container.style.backgroundImage = `url(${coverImageDataUrl})`;
+    }
     container.onclick = () => {
       showCover();
       persistAll();
@@ -1553,7 +1799,7 @@ function buildPagePreview(container, pageIndex) {
       pages[currentIndex].frames = collectFramesFromDOM();
       pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
     }
-    
+
     if (isOnCover) {
       isOnCover = false;
       opened = true;
@@ -1561,7 +1807,7 @@ function buildPagePreview(container, pageIndex) {
       cover.classList.add('no-anim', 'open');
       cover.style.pointerEvents = 'none';
     }
-    
+
     currentIndex = pageIndex;
     renderPage(currentIndex);
     persistAll();
@@ -1569,13 +1815,30 @@ function buildPagePreview(container, pageIndex) {
   };
 }
 
-/* ===== ノート内クリック：端ならページめくり／それ以外はテキスト追加 ===== */
-notebook.addEventListener('click', (e) => {
+/* ===== ノート内タップ：端ならページめくり／それ以外はテキスト追加 ===== */
+let notebookTapStart = null;
+
+notebook.addEventListener('pointerdown', (e) => {
+  if (mode !== 'select' || isOnCover) { notebookTapStart = null; return; }
+  if (e.target.closest('.frame') || e.target.closest('.add-text-btn')) { notebookTapStart = null; return; }
+  notebookTapStart = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
+});
+
+notebook.addEventListener('pointerup', (e) => {
+  if (isPinching) { notebookTapStart = null; return; }
+  if (!notebookTapStart || e.pointerId !== notebookTapStart.id) return;
+
+  const dx = e.clientX - notebookTapStart.x;
+  const dy = e.clientY - notebookTapStart.y;
+  const dt = Date.now() - notebookTapStart.t;
+  const start = notebookTapStart;
+  notebookTapStart = null;
+
+  if (Math.hypot(dx, dy) > 12 || dt > 600) return;
   if (mode !== 'select' || isOnCover) return;
-  if (e.target.closest('.frame') || e.target.closest('.add-text-btn')) return;
 
   const rect = notebook.getBoundingClientRect();
-  const x = e.clientX - rect.left;
+  const x = start.x - rect.left;
 
   if (x >= rect.width - EDGE_SIZE) {
     goForward();
@@ -1585,8 +1848,10 @@ notebook.addEventListener('click', (e) => {
     goBackward();
     return;
   }
-  showAddTextButton(e);
+  showAddTextButton({ clientX: start.x, clientY: start.y });
 });
+
+notebook.addEventListener('pointercancel', () => { notebookTapStart = null; });
 
 notebook.addEventListener('mousemove', (e) => {
   if (mode !== 'select' || isOnCover) return;
@@ -1605,9 +1870,7 @@ notebook.addEventListener('dragover', (e) => e.preventDefault());
 notebook.addEventListener('drop', (e) => {
   e.preventDefault();
   if (mode !== 'select' || isOnCover) return;
-  const rect = notebook.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const { x, y } = screenToNotebook(e.clientX, e.clientY);
 
   if (e.dataTransfer.files && e.dataTransfer.files.length) {
     [...e.dataTransfer.files].forEach(file => {
@@ -1627,9 +1890,7 @@ notebook.addEventListener('drop', (e) => {
 
 function showAddTextButton(e) {
   removeAddTextButton();
-  const rect = notebook.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const { x, y } = screenToNotebook(e.clientX, e.clientY);
 
   const btn = document.createElement('div');
   btn.className = 'add-text-btn';
@@ -1720,7 +1981,6 @@ function buildFrame({ type, src, text, x, y, w, h, angle = 0, scale = 1, z, skip
 
   const cropBtn = type === 'image' ? '<div class="tool-btn tool-crop" title="トリミング">✂</div>' : '';
 
-  // トリミング用のマスク要素とハンドル
   const cropMask = type === 'image' ? `
     <div class="crop-mask">
       <div class="crop-mask-overlay crop-mask-top"></div>
@@ -1736,7 +1996,6 @@ function buildFrame({ type, src, text, x, y, w, h, angle = 0, scale = 1, z, skip
     </div>
   ` : '';
 
-  // トリミング確定ボタン
   const cropControls = type === 'image' ? `
     <div class="crop-controls">
       <div class="crop-control-btn crop-apply" title="適用">✓</div>
@@ -1786,19 +2045,15 @@ function initFrame(frame) {
 
   frame.addEventListener('pointerdown', (e) => {
     if (mode !== 'select') return;
+    if (isPinching) return;
     if (e.target.closest('.handle') || e.target.closest('.tool-btn') || e.target.closest('.crop-control-btn') || e.target.closest('.crop-handle')) return;
     if (frame.classList.contains('editing-frame')) return;
-    
-    // トリミング中でない場合のみ選択
+
     if (!frame.classList.contains('cropping')) {
       selectFrame(frame);
       pushUndo();
       startMove(e, frame);
     }
-  });
-
-  frame.addEventListener('pointerenter', () => {
-    if (!frame.classList.contains('selected')) return;
   });
 
   frame.querySelectorAll('.handle').forEach(handle => {
@@ -1809,6 +2064,7 @@ function initFrame(frame) {
 
     handle.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
+      if (isPinching) return;
       if (!frame.classList.contains('cropping')) {
         pushUndo();
         startResize(e, frame, type);
@@ -1818,6 +2074,7 @@ function initFrame(frame) {
 
   frame.querySelector('.tool-rotate').addEventListener('pointerdown', (e) => {
     e.stopPropagation();
+    if (isPinching) return;
     pushUndo();
     startRotate(e, frame);
   });
@@ -1830,7 +2087,6 @@ function initFrame(frame) {
     });
   }
 
-  // トリミング範囲のドラッグ移動
   const cropArea = frame.querySelector('.crop-area');
   if (cropArea) {
     cropArea.addEventListener('pointerdown', (e) => {
@@ -1840,7 +2096,6 @@ function initFrame(frame) {
     });
   }
 
-  // トリミング用ハンドル
   frame.querySelectorAll('.crop-handle').forEach(handle => {
     const type =
       handle.classList.contains('nw') ? 'nw' :
@@ -1853,7 +2108,6 @@ function initFrame(frame) {
     });
   });
 
-  // トリミング確定・キャンセルボタン
   const applyBtn = frame.querySelector('.crop-apply');
   const cancelBtn = frame.querySelector('.crop-cancel');
   if (applyBtn) {
@@ -1928,44 +2182,47 @@ function selectFrame(frame) {
   frame.style.zIndex = ++zIndexCounter;
 }
 
+/* ===== 移動（ノート内部座標系で計算） ===== */
 function startMove(e, frame) {
-  const startX = e.clientX, startY = e.clientY;
+  const startPt = screenToNotebook(e.clientX, e.clientY);
   const startLeft = parseFloat(frame.style.left);
   const startTop = parseFloat(frame.style.top);
   frame.setPointerCapture(e.pointerId);
   frame.style.cursor = 'grabbing';
 
   function onMove(ev) {
-    frame.style.left = (startLeft + (ev.clientX - startX)) + 'px';
-    frame.style.top = (startTop + (ev.clientY - startY)) + 'px';
+    const pt = screenToNotebook(ev.clientX, ev.clientY);
+    frame.style.left = (startLeft + (pt.x - startPt.x)) + 'px';
+    frame.style.top = (startTop + (pt.y - startPt.y)) + 'px';
   }
   function onUp() {
+    activeFrameDragEnd = null;
     frame.style.cursor = 'grab';
     frame.removeEventListener('pointermove', onMove);
     frame.removeEventListener('pointerup', onUp);
     persistAll();
   }
+  activeFrameDragEnd = onUp;
   frame.addEventListener('pointermove', onMove);
   frame.addEventListener('pointerup', onUp);
 }
 
 /* ============================================================
-   拡大縮小
+   拡大縮小：掴んだ頂点の対角を固定点として拡縮（ノート内部座標系）
    ============================================================ */
 function startResize(e, frame, handleType) {
   e.preventDefault();
 
   const w = parseFloat(frame.style.width);
   const h = parseFloat(frame.style.height);
-  const startScale = parseFloat(frame.dataset.scale) || 1;
+  const startFrameScale = parseFloat(frame.dataset.scale) || 1;
   const angle = (parseFloat(frame.dataset.angle) || 0) * Math.PI / 180;
   const cosA = Math.cos(angle), sinA = Math.sin(angle);
 
-  const rect = frame.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-
-  const notebookRect = notebook.getBoundingClientRect();
+  const frameLeft = parseFloat(frame.style.left);
+  const frameTop = parseFloat(frame.style.top);
+  const cx = frameLeft + w / 2;
+  const cy = frameTop + h / 2;
 
   const hw = w / 2, hh = h / 2;
 
@@ -1977,8 +2234,8 @@ function startResize(e, frame, handleType) {
     case 'se': anchorBase = { x: -hw, y: -hh }; break;
   }
 
-  const anchorWorldX = cx + (anchorBase.x * cosA - anchorBase.y * sinA) * startScale;
-  const anchorWorldY = cy + (anchorBase.x * sinA + anchorBase.y * cosA) * startScale;
+  const anchorX = cx + (anchorBase.x * cosA - anchorBase.y * sinA) * startFrameScale;
+  const anchorY = cy + (anchorBase.x * sinA + anchorBase.y * cosA) * startFrameScale;
 
   const diffBaseX = -2 * anchorBase.x;
   const diffBaseY = -2 * anchorBase.y;
@@ -1989,54 +2246,65 @@ function startResize(e, frame, handleType) {
   frame.setPointerCapture(e.pointerId);
 
   function onMove(ev) {
-    const vecWorldX = ev.clientX - anchorWorldX;
-    const vecWorldY = ev.clientY - anchorWorldY;
+    const pt = screenToNotebook(ev.clientX, ev.clientY);
+    const vecX = pt.x - anchorX;
+    const vecY = pt.y - anchorY;
 
-    const vecLocalX = vecWorldX * cosA + vecWorldY * sinA;
-    const vecLocalY = -vecWorldX * sinA + vecWorldY * cosA;
+    const vecLocalX = vecX * cosA + vecY * sinA;
+    const vecLocalY = -vecX * sinA + vecY * cosA;
 
     const projLen = vecLocalX * unitX + vecLocalY * unitY;
     let newScale = projLen / diffBaseLen;
     newScale = Math.max(0.2, Math.min(6, newScale));
 
-    const newCenterX = anchorWorldX - (anchorBase.x * cosA - anchorBase.y * sinA) * newScale;
-    const newCenterY = anchorWorldY - (anchorBase.x * sinA + anchorBase.y * cosA) * newScale;
+    const newCenterX = anchorX - (anchorBase.x * cosA - anchorBase.y * sinA) * newScale;
+    const newCenterY = anchorY - (anchorBase.x * sinA + anchorBase.y * cosA) * newScale;
 
     frame.dataset.scale = newScale;
-    frame.style.left = (newCenterX - notebookRect.left - hw) + 'px';
-    frame.style.top  = (newCenterY - notebookRect.top  - hh) + 'px';
+    frame.style.left = (newCenterX - hw) + 'px';
+    frame.style.top  = (newCenterY - hh) + 'px';
 
     applyTransform(frame);
   }
   function onUp() {
+    activeFrameDragEnd = null;
     frame.removeEventListener('pointermove', onMove);
     frame.removeEventListener('pointerup', onUp);
     persistAll();
   }
+  activeFrameDragEnd = onUp;
   frame.addEventListener('pointermove', onMove);
   frame.addEventListener('pointerup', onUp);
 }
 
 function startRotate(e, frame) {
-  const rect = frame.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
+  const w = parseFloat(frame.style.width);
+  const h = parseFloat(frame.style.height);
+  const frameLeft = parseFloat(frame.style.left);
+  const frameTop = parseFloat(frame.style.top);
+  const cx = frameLeft + w / 2;
+  const cy = frameTop + h / 2;
+
   const startAngle = parseFloat(frame.dataset.angle) || 0;
-  const startPointerAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+  const startPt = screenToNotebook(e.clientX, e.clientY);
+  const startPointerAngle = Math.atan2(startPt.y - cy, startPt.x - cx) * 180 / Math.PI;
 
   frame.setPointerCapture(e.pointerId);
 
   function onMove(ev) {
-    const pointerAngle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX) * 180 / Math.PI;
+    const pt = screenToNotebook(ev.clientX, ev.clientY);
+    const pointerAngle = Math.atan2(pt.y - cy, pt.x - cx) * 180 / Math.PI;
     const newAngle = startAngle + (pointerAngle - startPointerAngle);
     frame.dataset.angle = newAngle;
     applyTransform(frame);
   }
   function onUp() {
+    activeFrameDragEnd = null;
     frame.removeEventListener('pointermove', onMove);
     frame.removeEventListener('pointerup', onUp);
     persistAll();
   }
+  activeFrameDragEnd = onUp;
   frame.addEventListener('pointermove', onMove);
   frame.addEventListener('pointerup', onUp);
 }
@@ -2050,12 +2318,12 @@ function applyTransform(frame) {
   if (toolbar) {
     toolbar.style.transform = `translate(-50%, 10px) rotate(${-angle}deg) scale(${1 / scale})`;
   }
-  
+
   const cropControls = frame.querySelector('.crop-controls');
   if (cropControls) {
     cropControls.style.transform = `rotate(${-angle}deg) scale(${1 / scale})`;
   }
-  
+
   frame.querySelectorAll('.handle').forEach(h => {
     h.style.transform = `scale(${1 / scale})`;
   });
@@ -2081,26 +2349,25 @@ function duplicateFrame(frame) {
 }
 
 /* ============================================================
-   インライントリミング機能（改良版）
+   インライントリミング機能
    ============================================================ */
 function startCrop(frame) {
   const img = frame.querySelector('img');
   if (!img) return;
 
   pushUndo();
-  
+
   croppingFrame = frame;
   frame.classList.add('cropping');
   frame.classList.remove('selected');
-  
-  // 初期のトリミング範囲を設定（画像の80%）
+
   const w = parseFloat(frame.style.width);
   const h = parseFloat(frame.style.height);
   const cropW = w * 0.8;
   const cropH = h * 0.8;
   const cropX = w * 0.1;
   const cropY = h * 0.1;
-  
+
   cropStartData = {
     originalSrc: img.src,
     frameWidth: w,
@@ -2110,94 +2377,95 @@ function startCrop(frame) {
     cropW: cropW,
     cropH: cropH
   };
-  
+
   updateCropMask(frame);
 }
 
 function updateCropMask(frame) {
   const data = cropStartData;
   if (!data) return;
-  
+
   const maskTop = frame.querySelector('.crop-mask-top');
   const maskBottom = frame.querySelector('.crop-mask-bottom');
   const maskLeft = frame.querySelector('.crop-mask-left');
   const maskRight = frame.querySelector('.crop-mask-right');
   const cropArea = frame.querySelector('.crop-area');
-  
-  // マスクの位置を更新
+
   maskTop.style.height = data.cropY + 'px';
-  
   maskBottom.style.height = (data.frameHeight - data.cropY - data.cropH) + 'px';
-  
+
   maskLeft.style.top = data.cropY + 'px';
   maskLeft.style.height = data.cropH + 'px';
   maskLeft.style.width = data.cropX + 'px';
-  
+
   maskRight.style.top = data.cropY + 'px';
   maskRight.style.height = data.cropH + 'px';
   maskRight.style.left = (data.cropX + data.cropW) + 'px';
   maskRight.style.width = (data.frameWidth - data.cropX - data.cropW) + 'px';
-  
-  // トリミング範囲の枠
+
   cropArea.style.left = data.cropX + 'px';
   cropArea.style.top = data.cropY + 'px';
   cropArea.style.width = data.cropW + 'px';
   cropArea.style.height = data.cropH + 'px';
 }
 
-// トリミング範囲の移動
 function startCropMove(e, frame) {
   const data = cropStartData;
   if (!data) return;
-  
+
+  const frameScale = parseFloat(frame.dataset.scale) || 1;
+  const totalScale = getViewScale() * frameScale;
+
   const startX = e.clientX;
   const startY = e.clientY;
   const startCropX = data.cropX;
   const startCropY = data.cropY;
-  
+
   const cropArea = frame.querySelector('.crop-area');
   cropArea.setPointerCapture(e.pointerId);
-  
+
   function onMove(ev) {
-    const dx = ev.clientX - startX;
-    const dy = ev.clientY - startY;
-    
+    const dx = (ev.clientX - startX) / totalScale;
+    const dy = (ev.clientY - startY) / totalScale;
+
     data.cropX = Math.max(0, Math.min(startCropX + dx, data.frameWidth - data.cropW));
     data.cropY = Math.max(0, Math.min(startCropY + dy, data.frameHeight - data.cropH));
-    
+
     updateCropMask(frame);
   }
-  
+
   function onUp() {
     cropArea.removeEventListener('pointermove', onMove);
     cropArea.removeEventListener('pointerup', onUp);
   }
-  
+
   cropArea.addEventListener('pointermove', onMove);
   cropArea.addEventListener('pointerup', onUp);
 }
 
-// トリミング範囲のリサイズ
 function startCropResize(e, frame, handleType) {
   e.preventDefault();
-  
+
   const data = cropStartData;
   if (!data) return;
-  
+
+  const frameScale = parseFloat(frame.dataset.scale) || 1;
+  const totalScale = getViewScale() * frameScale;
+
   const startX = e.clientX;
   const startY = e.clientY;
   const startCropX = data.cropX;
   const startCropY = data.cropY;
   const startCropW = data.cropW;
   const startCropH = data.cropH;
-  
+
   const handle = e.target;
   handle.setPointerCapture(e.pointerId);
-  
+
   function onMove(ev) {
-    const dx = ev.clientX - startX;
-    const dy = ev.clientY - startY;
-    
+    const dx = (ev.clientX - startX) / totalScale;
+    const dy = (ev.clientY - startY) / totalScale;
+
     switch (handleType) {
       case 'nw':
         data.cropX = Math.max(0, Math.min(startCropX + dx, startCropX + startCropW - 20));
@@ -2220,15 +2488,15 @@ function startCropResize(e, frame, handleType) {
         data.cropH = Math.max(20, Math.min(startCropH + dy, data.frameHeight - startCropY));
         break;
     }
-    
+
     updateCropMask(frame);
   }
-  
+
   function onUp() {
     handle.removeEventListener('pointermove', onMove);
     handle.removeEventListener('pointerup', onUp);
   }
-  
+
   handle.addEventListener('pointermove', onMove);
   handle.addEventListener('pointerup', onUp);
 }
@@ -2237,45 +2505,37 @@ function applyCrop(frame) {
   const img = frame.querySelector('img');
   const data = cropStartData;
   if (!img || !data) return;
-  
-  // Canvas要素を作成してトリミング
+
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
+  const cctx = canvas.getContext('2d');
+
   const tempImg = new Image();
   tempImg.onload = () => {
-    // 元画像のサイズとフレームサイズの比率を計算
     const scaleX = tempImg.naturalWidth / data.frameWidth;
     const scaleY = tempImg.naturalHeight / data.frameHeight;
-    
-    // トリミング範囲を元画像の座標に変換
+
     const srcX = data.cropX * scaleX;
     const srcY = data.cropY * scaleY;
     const srcW = data.cropW * scaleX;
     const srcH = data.cropH * scaleY;
-    
-    // Canvasのサイズを設定
+
     canvas.width = srcW;
     canvas.height = srcH;
-    
-    // トリミングして描画
-    ctx.drawImage(tempImg, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
-    
-    // 新しい画像として設定
+
+    cctx.drawImage(tempImg, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
     img.src = canvas.toDataURL('image/png');
-    
-    // フレームサイズを調整
+
     frame.style.width = data.cropW + 'px';
     frame.style.height = data.cropH + 'px';
     frame.style.left = (parseFloat(frame.style.left) + data.cropX) + 'px';
     frame.style.top = (parseFloat(frame.style.top) + data.cropY) + 'px';
-    
-    // トリミングモードを終了
+
     frame.classList.remove('cropping');
     frame.classList.add('selected');
     croppingFrame = null;
     cropStartData = null;
-    
+
     persistAll();
   };
   tempImg.src = data.originalSrc;
