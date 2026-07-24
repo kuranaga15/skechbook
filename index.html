@@ -1304,16 +1304,17 @@ function collectFramesFromDOM() {
 }
 
 function persistAll() {
-  if (!isOnCover) {
-    pages[currentIndex].frames = collectFramesFromDOM();
-  }
   try {
+    if (!isOnCover) {
+      pages[currentIndex].frames = collectFramesFromDOM();
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover, coverImageDataUrl }));
   } catch (e) {
     console.warn('保存に失敗しました（容量オーバーの可能性）', e);
     alert('データ容量が大きすぎて保存できませんでした。画像や手書きの量を減らしてください。');
+  } finally {
+    renderThumbnails();
   }
-  renderThumbnails();
 }
 
 function restoreAll() {
@@ -1654,8 +1655,8 @@ function getSpreadPair(spreadNum) {
   const leftIdx = spreadNum * 2 - 1;
   const rightIdx = spreadNum * 2;
   return {
-    leftIdx: leftIdx < pages.length ? leftIdx : -1,
-    rightIdx: rightIdx < pages.length ? rightIdx : -1
+    leftIdx: leftIdx < pages.length ? leftIdx : -2,
+    rightIdx: rightIdx < pages.length ? rightIdx : -2
   };
 }
 
@@ -1743,9 +1744,14 @@ function buildPagePreview(container, pageIndex) {
       container.style.backgroundImage = `url(${coverImageDataUrl})`;
     }
     container.onclick = () => {
-      showCover();
-      persistAll();
-      closeSpreadView();
+      try {
+        showCover();
+        persistAll();
+      } catch (err) {
+        console.error('表紙表示中にエラーが発生しました', err);
+      } finally {
+        closeSpreadView();
+      }
     };
     return;
   }
@@ -1795,23 +1801,32 @@ function buildPagePreview(container, pageIndex) {
   container.appendChild(inner);
 
   container.onclick = () => {
-    if (!isOnCover) {
-      pages[currentIndex].frames = collectFramesFromDOM();
-      pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
-    }
+    try {
+      if (!isOnCover) {
+        pages[currentIndex].frames = collectFramesFromDOM();
+        try {
+          pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
+        } catch (err) {
+          console.warn('描画データの保存に失敗しました（画像の読み込み元が原因の可能性があります）', err);
+        }
+      }
 
-    if (isOnCover) {
-      isOnCover = false;
-      opened = true;
-      notebook.classList.remove('hidden');
-      cover.classList.add('no-anim', 'open');
-      cover.style.pointerEvents = 'none';
-    }
+      if (isOnCover) {
+        isOnCover = false;
+        opened = true;
+        notebook.classList.remove('hidden');
+        cover.classList.add('no-anim', 'open');
+        cover.style.pointerEvents = 'none';
+      }
 
-    currentIndex = pageIndex;
-    renderPage(currentIndex);
-    persistAll();
-    closeSpreadView();
+      currentIndex = pageIndex;
+      renderPage(currentIndex);
+      persistAll();
+    } catch (err) {
+      console.error('ページ移動中にエラーが発生しました', err);
+    } finally {
+      closeSpreadView();
+    }
   };
 }
 
@@ -2200,11 +2215,15 @@ function startMove(e, frame) {
     frame.style.cursor = 'grab';
     frame.removeEventListener('pointermove', onMove);
     frame.removeEventListener('pointerup', onUp);
+    frame.removeEventListener('pointercancel', onUp);
+    frame.removeEventListener('lostpointercapture', onUp);
     persistAll();
   }
   activeFrameDragEnd = onUp;
   frame.addEventListener('pointermove', onMove);
   frame.addEventListener('pointerup', onUp);
+  frame.addEventListener('pointercancel', onUp);
+  frame.addEventListener('lostpointercapture', onUp);
 }
 
 /* ============================================================
@@ -2270,11 +2289,15 @@ function startResize(e, frame, handleType) {
     activeFrameDragEnd = null;
     frame.removeEventListener('pointermove', onMove);
     frame.removeEventListener('pointerup', onUp);
+    frame.removeEventListener('pointercancel', onUp);
+    frame.removeEventListener('lostpointercapture', onUp);
     persistAll();
   }
   activeFrameDragEnd = onUp;
   frame.addEventListener('pointermove', onMove);
   frame.addEventListener('pointerup', onUp);
+  frame.addEventListener('pointercancel', onUp);
+  frame.addEventListener('lostpointercapture', onUp);
 }
 
 function startRotate(e, frame) {
@@ -2302,11 +2325,15 @@ function startRotate(e, frame) {
     activeFrameDragEnd = null;
     frame.removeEventListener('pointermove', onMove);
     frame.removeEventListener('pointerup', onUp);
+    frame.removeEventListener('pointercancel', onUp);
+    frame.removeEventListener('lostpointercapture', onUp);
     persistAll();
   }
   activeFrameDragEnd = onUp;
   frame.addEventListener('pointermove', onMove);
   frame.addEventListener('pointerup', onUp);
+  frame.addEventListener('pointercancel', onUp);
+  frame.addEventListener('lostpointercapture', onUp);
 }
 
 function applyTransform(frame) {
@@ -2437,10 +2464,14 @@ function startCropMove(e, frame) {
   function onUp() {
     cropArea.removeEventListener('pointermove', onMove);
     cropArea.removeEventListener('pointerup', onUp);
+    cropArea.removeEventListener('pointercancel', onUp);
+    cropArea.removeEventListener('lostpointercapture', onUp);
   }
 
   cropArea.addEventListener('pointermove', onMove);
   cropArea.addEventListener('pointerup', onUp);
+  cropArea.addEventListener('pointercancel', onUp);
+  cropArea.addEventListener('lostpointercapture', onUp);
 }
 
 function startCropResize(e, frame, handleType) {
@@ -2495,10 +2526,14 @@ function startCropResize(e, frame, handleType) {
   function onUp() {
     handle.removeEventListener('pointermove', onMove);
     handle.removeEventListener('pointerup', onUp);
+    handle.removeEventListener('pointercancel', onUp);
+    handle.removeEventListener('lostpointercapture', onUp);
   }
 
   handle.addEventListener('pointermove', onMove);
   handle.addEventListener('pointerup', onUp);
+  handle.addEventListener('pointercancel', onUp);
+  handle.addEventListener('lostpointercapture', onUp);
 }
 
 function applyCrop(frame) {
