@@ -1366,7 +1366,7 @@ function widthMultiplierAt(dist) {
    ペン先の速度（キャンバスpx/ms）が一定より速くなるにつれて、
    線幅を設定サイズより少し絞る。ゆっくり書いたときは太さそのまま。 */
 const SPEED_THIN_START = 0.35; // これ(px/ms)を超えたら細くし始める
-const SPEED_THIN_MAX    = 1.9; // これ(px/ms)以上で最大まで細くなる
+const SPEED_THIN_MAX    = 0.9; // これ(px/ms)以上で最大まで細くなる
 const SPEED_THIN_FLOOR  = 0.50; // 最大まで細くなったときの倍率（下限）
 
 function speedWidthMultiplier(speed) {
