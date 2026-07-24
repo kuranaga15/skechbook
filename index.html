@@ -1345,12 +1345,14 @@ let isDrawing = false;
 let lastX = 0, lastY = 0;
 let currentStrokeStartTime = 0;
 let strokeTraveledDist = 0;
+let lastMoveTime = 0;
+let smoothedSpeed = 0; // キャンバスpx/ms（指数移動平均でなめらかに）
 
 /* ---- ボールペン／万年筆っぽい書き味 ----
    描き始め・描き終わりだけ少し太く、柔らかい（にじんだ）点にする。
    ペンモードのみ有効（消しゴムは均一なまま）。 */
 const PEN_BLOB_SCALE = 1.55;  // 描き始め・描き終わりの太さの倍率
-const PEN_TAPER_DIST = 22;    // この距離(キャンバスpx)で通常の太さへ戻す
+const PEN_TAPER_DIST = 11;    // この距離(キャンバスpx)で通常の太さへ戻す（小さい文字が丸ごとぼけないよう、範囲を半分に縮小）
 const PEN_BLOB_SOFT_BLUR = 1.6; // にじみの強さ
 
 function widthMultiplierAt(dist) {
@@ -1358,6 +1360,20 @@ function widthMultiplierAt(dist) {
   const t = dist / PEN_TAPER_DIST;
   const eased = 1 - Math.pow(1 - t, 2); // イーズアウトで滑らかに戻す
   return PEN_BLOB_SCALE - (PEN_BLOB_SCALE - 1) * eased;
+}
+
+/* ---- 速いストロークほど少し細くなる表現 ----
+   ペン先の速度（キャンバスpx/ms）が一定より速くなるにつれて、
+   線幅を設定サイズより少し絞る。ゆっくり書いたときは太さそのまま。 */
+const SPEED_THIN_START = 0.35; // これ(px/ms)を超えたら細くし始める
+const SPEED_THIN_MAX    = 1.6; // これ(px/ms)以上で最大まで細くなる
+const SPEED_THIN_FLOOR  = 0.72; // 最大まで細くなったときの倍率（下限）
+
+function speedWidthMultiplier(speed) {
+  if (speed <= SPEED_THIN_START) return 1;
+  const t = Math.min(1, (speed - SPEED_THIN_START) / (SPEED_THIN_MAX - SPEED_THIN_START));
+  const eased = t * t; // 加速に応じて滑らかに細くなる
+  return 1 - eased * (1 - SPEED_THIN_FLOOR);
 }
 
 function hexToRgba(hex, alpha) {
@@ -1407,6 +1423,8 @@ drawCanvas.addEventListener('pointerdown', (e) => {
   isDrawing = true;
   currentStrokeStartTime = performance.now();
   strokeTraveledDist = 0;
+  lastMoveTime = currentStrokeStartTime;
+  smoothedSpeed = 0;
   const p = canvasPos(e);
   lastX = p.x; lastY = p.y;
   drawCanvas.setPointerCapture(e.pointerId);
@@ -1429,17 +1447,25 @@ drawCanvas.addEventListener('pointermove', (e) => {
   const segStartDist = strokeTraveledDist;
   strokeTraveledDist += segLen;
 
+  const now = performance.now();
+  const dt = Math.max(1, now - lastMoveTime); // 0除算・異常値防止で最小1ms
+  const instSpeed = segLen / dt;
+  smoothedSpeed = smoothedSpeed * 0.65 + instSpeed * 0.35; // なめらかに追従
+  lastMoveTime = now;
+
   ctx.beginPath();
   ctx.moveTo(lastX, lastY);
   ctx.lineTo(p.x, p.y);
   applyStrokeStyle();
 
   if (mode === 'pen') {
-    const mult = widthMultiplierAt(segStartDist + segLen / 2);
+    const taperMult = widthMultiplierAt(segStartDist + segLen / 2);
+    const speedMult = speedWidthMultiplier(smoothedSpeed);
+    const mult = taperMult * speedMult;
     ctx.lineWidth = getPenSize() * mult;
-    if (mult > 1.02) {
+    if (taperMult > 1.02) {
       ctx.shadowColor = penColorInput.value;
-      ctx.shadowBlur = (mult - 1) * PEN_BLOB_SOFT_BLUR * 3;
+      ctx.shadowBlur = (taperMult - 1) * PEN_BLOB_SOFT_BLUR * 3;
     }
   }
 
