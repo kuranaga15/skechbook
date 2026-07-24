@@ -1037,8 +1037,14 @@ window.addEventListener('pointerdown', (e) => {
     pinchStartMid = midOf(pts[0], pts[1]);
     pinchStartPan = { x: panX, y: panY };
     isPinching = true;
-    if (isDrawing) endStroke();
-    if (strokePending) { strokePending = false; strokeCancelled = false; }
+    if (isDrawing) {
+      const elapsedSinceStroke = performance.now() - currentStrokeStartTime;
+      if (elapsedSinceStroke < ACCIDENTAL_STROKE_MS) {
+        cancelStrokeAsAccidental();
+      } else {
+        endStroke();
+      }
+    }
     if (activeFrameDragEnd) { const fn = activeFrameDragEnd; activeFrameDragEnd = null; fn(); }
   }
 }, { capture: true });
@@ -1337,19 +1343,15 @@ modeEraserBtn.addEventListener('click', () => setMode('eraser'));
    ============================================================ */
 let isDrawing = false;
 let lastX = 0, lastY = 0;
+let currentStrokeStartTime = 0;
 
-/* ---- タッチでの「スワイプ」誤描画防止 ----
-   指（touch）で触れた瞬間はまだ描画を確定させず、ごく短い時間だけ
-   動きを観察する。速く・大きく動いたら「スワイプ（操作ミス）」と判断して
-   一切描画しない。ゆっくりした動き、またはそのまま指を離した場合（タップ）は
-   通常どおり描画として確定させる。マウス／ペン入力は従来どおり即描画。 */
-const SWIPE_CONFIRM_MS = 55;   // この時間内の動きを見て判定する
-const SWIPE_DISTANCE_PX = 14;  // 判定時間内にこれ以上動いたらスワイプとみなす
-let strokePending = false;
-let strokeCancelled = false;
-let pendingPointerId = null;
-let pendingStartClient = { x: 0, y: 0 };
-let pendingStartTime = 0;
+/* ---- ピンチ開始時の誤描画を取り消す ----
+   2本指ズームをしようとした時、指が完全に同時には着地しないため、
+   最初の指だけが一瞬「描画」として扱われ、短い線が引かれてしまうことがある。
+   その対策として、2本指目が置かれた瞬間に「直前・ごく短時間で始まった
+   ストローク」があれば描画前の状態に戻す。通常の片手描画（タップ／速いドラッグ
+   問わず）には一切遅延を入れず、これまでどおり即座に描ける。 */
+const ACCIDENTAL_STROKE_MS = 220;
 
 function canvasPos(e) {
   const rect = drawCanvas.getBoundingClientRect();
@@ -1358,57 +1360,24 @@ function canvasPos(e) {
   return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 }
 
-function beginActualStroke(e) {
+drawCanvas.addEventListener('pointerdown', (e) => {
+  if (mode === 'select' || isOnCover) return;
+  if (isPinching) return;
+  if (e.cancelable) e.preventDefault();
   pushUndo();
   isDrawing = true;
+  currentStrokeStartTime = performance.now();
   const p = canvasPos(e);
   lastX = p.x; lastY = p.y;
+  drawCanvas.setPointerCapture(e.pointerId);
 
   ctx.beginPath();
   ctx.arc(p.x, p.y, (mode === 'eraser' ? getEraserSize() : getPenSize()) / 2, 0, Math.PI * 2);
   applyStrokeStyle();
   ctx.fill();
-}
-
-drawCanvas.addEventListener('pointerdown', (e) => {
-  if (mode === 'select' || isOnCover) return;
-  if (isPinching) return;
-  if (e.cancelable) e.preventDefault();
-  drawCanvas.setPointerCapture(e.pointerId);
-
-  if (e.pointerType === 'touch') {
-    strokePending = true;
-    strokeCancelled = false;
-    pendingPointerId = e.pointerId;
-    pendingStartClient = { x: e.clientX, y: e.clientY };
-    pendingStartTime = performance.now();
-  } else {
-    beginActualStroke(e);
-  }
 }, { passive: false });
 
 drawCanvas.addEventListener('pointermove', (e) => {
-  if (strokeCancelled) return;
-
-  if (strokePending) {
-    if (e.pointerId !== pendingPointerId) return;
-    const dist = Math.hypot(e.clientX - pendingStartClient.x, e.clientY - pendingStartClient.y);
-    const elapsed = performance.now() - pendingStartTime;
-
-    if (dist > SWIPE_DISTANCE_PX) {
-      // 短時間で大きく動いた＝スワイプと判定し、描画をキャンセル
-      strokePending = false;
-      strokeCancelled = true;
-      return;
-    }
-    if (elapsed < SWIPE_CONFIRM_MS) {
-      return; // まだ判定中
-    }
-    // ゆっくりした動き＝意図した描画と判定して開始
-    strokePending = false;
-    beginActualStroke(e);
-  }
-
   if (!isDrawing) return;
   if (e.cancelable) e.preventDefault();
   const p = canvasPos(e);
@@ -1420,23 +1389,25 @@ drawCanvas.addEventListener('pointermove', (e) => {
   lastX = p.x; lastY = p.y;
 }, { passive: false });
 
-function endStroke(e, opts) {
-  const isAbort = !!(opts && opts.abort);
-  if (strokePending) {
-    strokePending = false;
-    if (!strokeCancelled && !isAbort && e) {
-      // 判定が確定する前に指を離した＝軽いタップとして点を描画する
-      beginActualStroke(e);
-    }
+/* 2本指目が置かれた瞬間などに、始まったばかりのストロークを取り消す */
+function cancelStrokeAsAccidental() {
+  if (!isDrawing) return;
+  isDrawing = false;
+  if (undoStack.length) {
+    undoStack.pop();
+    updateUndoButtonState();
   }
-  strokeCancelled = false;
+  loadDrawingIntoCanvas(pages[currentIndex] ? pages[currentIndex].drawing : null);
+}
+
+function endStroke() {
   if (!isDrawing) return;
   isDrawing = false;
   persistDrawing();
 }
-drawCanvas.addEventListener('pointerup', (e) => endStroke(e));
-drawCanvas.addEventListener('pointerleave', (e) => endStroke(e));
-drawCanvas.addEventListener('pointercancel', (e) => endStroke(e, { abort: true }));
+drawCanvas.addEventListener('pointerup', endStroke);
+drawCanvas.addEventListener('pointerleave', endStroke);
+drawCanvas.addEventListener('pointercancel', endStroke);
 
 function getPenSize() { return parseFloat(penSizeInput.value) || 4; }
 function getEraserSize() { return getPenSize() * 3; }
