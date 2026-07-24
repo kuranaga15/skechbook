@@ -1365,8 +1365,8 @@ function widthMultiplierAt(dist) {
 /* ---- 速いストロークほど少し細くなる表現 ----
    ペン先の速度（キャンバスpx/ms）が一定より速くなるにつれて、
    線幅を設定サイズより少し絞る。ゆっくり書いたときは太さそのまま。 */
-const SPEED_THIN_START = 0.35; // これ(px/ms)を超えたら細くし始める
-const SPEED_THIN_MAX    = 0.9; // これ(px/ms)以上で最大まで細くなる
+const SPEED_THIN_START = 0.20; // これ(px/ms)を超えたら細くし始める
+const SPEED_THIN_MAX    = 0.8; // これ(px/ms)以上で最大まで細くなる
 const SPEED_THIN_FLOOR  = 0.50; // 最大まで細くなったときの倍率（下限）
 
 function speedWidthMultiplier(speed) {
@@ -1387,15 +1387,21 @@ function hexToRgba(hex, alpha) {
 /* 描き始め／描き終わりの「インク溜まり」を柔らかいグラデーションで表現 */
 function drawPenBlob(x, y, radius) {
   const color = penColorInput.value;
+
+  // ペンサイズに対して小さめにする
+  const blobRadius = Math.max(radius * 0.45, 0.8);
+
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, blobRadius);
   grad.addColorStop(0, color);
-  grad.addColorStop(0.65, color);
+  grad.addColorStop(0.7, color);
   grad.addColorStop(1, hexToRgba(color, 0));
+
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.arc(x, y, blobRadius, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
