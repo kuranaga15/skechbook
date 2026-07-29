@@ -29,117 +29,31 @@
   }
   .zoom-layer {
     transform-origin: center center;
-    will-change: transform;
     touch-action: none;
   }
 
   .book-wrap {
-    width: 640px;
-    height: 860px;
-    perspective: 2000px;
+    width: 960px;
+    height: 668px;
     position: relative;
     touch-action: none;
   }
 
+  /* ノート本体。背景はJSで NOTEBOOK_BG_URL を挿入して1枚の見開き画像を敷くだけ。
+     左右ページの概念やグリッド線・綴じ穴の描画はすべて画像側に含まれる前提。 */
   .notebook {
     position: absolute;
     inset: 0;
     background-color: #fdfdf7;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
     box-shadow: inset 0 0 16px rgba(0,0,0,0.08), 0 10px 25px rgba(0,0,0,0.35);
     overflow: hidden;
     touch-action: none;
   }
-  .notebook.hidden { display: none; }
-  .notebook.right-page,
-  .notebook.left-page {
-    background-image:
-      repeating-linear-gradient(to bottom, transparent 0px, transparent 29px, #848484 30px),
-      repeating-linear-gradient(to right,  transparent 0px, transparent 29px, #848484 30px);
-  }
-
-  .notebook::before {
-    content: "";
-    position: absolute;
-    top: 14px; bottom: 14px;
-    width: 20px;
-    z-index: 100;
-    pointer-events: none;
-    background-image: radial-gradient(circle 12px, #b6b4b0 11px, transparent 2px);
-    background-repeat: repeat-y;
-    background-size: 100% 60px;
-  }
-  .notebook.right-page::before { left: 16px; }
-  .notebook.left-page::before  { right: 16px; }
-
-  .cover {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, #6b3f2a, #8a5a3b);
-    background-size: cover;
-    background-position: center;
-    border-radius: 4px 10px 10px 4px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-    cursor: pointer;
-    transform-origin: left center;
-    transform-style: preserve-3d;
-    transition: transform 1.1s ease-in-out;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #f0e6d6;
-    font-size: 28px;
-    letter-spacing: 4px;
-    backface-visibility: hidden;
-  }
-  .cover::after{
-    content: "";
-    position: absolute;
-    right: 0; top: 0; bottom: 0;
-    width: 45%;
-    background: linear-gradient(to right, transparent, rgba(255,255,255,0.06));
-    z-index: 1;
-  }
-  .cover.open { transform: rotateY(-165deg); }
-  .cover.no-anim { transition: none; }
-
-  .cover-shade {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.45));
-    opacity: 0;
-    transition: opacity .3s;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .cover.has-image .cover-shade { opacity: 1; }
-
-  .cover-title {
-    position: relative;
-    z-index: 2;
-    pointer-events: none;
-  }
-  .cover.has-image .cover-title {
-    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
-  }
-
-  .cover-replace-btn {
-    position: absolute;
-    bottom: 26px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.5);
-    color: #f0e6d6;
-    font-size: 11px;
-    letter-spacing: 1px;
-    padding: 7px 18px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: background .2s;
-    z-index: 20;
-  }
-  .cover-replace-btn:hover { background: rgba(255,255,255,0.3); }
+  .notebook.in-spread .page-edge,
+  .notebook.in-spread .hint { display: none !important; }
 
   .blackout {
     position: fixed; inset: 0;
@@ -209,7 +123,6 @@
   .thumb-panel::-webkit-scrollbar { width: 6px; }
   .thumb-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
 
-  /* ================= 縦画面レイアウト：サムネイルを上部に横並び ================= */
   body.mobile-layout .thumb-panel {
     top: 0;
     left: 0;
@@ -232,8 +145,11 @@
   .thumb-item {
     position: relative;
     width: 74px;
-    height: 100px;
-    background: #fdfdf7;
+    height: 52px;
+    background-color: #fdfdf7;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
     border: 2px solid transparent;
     border-radius: 5px;
     overflow: hidden;
@@ -244,18 +160,6 @@
   }
   .thumb-item:hover { transform: scale(1.05); }
   .thumb-item.active { border-color: #4a90e2; }
-  .thumb-item.cover-thumb {
-    background: linear-gradient(135deg, #6b3f2a, #8a5a3b);
-    background-size: cover;
-    background-position: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #f0e6d6;
-    font-size: 8px;
-    letter-spacing: 1px;
-    text-align: center;
-  }
   .thumb-item.dragging {
     opacity: 0.5;
     transform: scale(0.95);
@@ -264,35 +168,16 @@
   .thumb-inner {
     position: absolute;
     top: 0; left: 0;
-    width: 640px;
-    height: 860px;
+    width: 960px;
+    height: 668px;
     transform-origin: top left;
     pointer-events: none;
-    background-color: #fdfdf7;
   }
-  .thumb-inner.right-page,
-  .thumb-inner.left-page {
-    background-image:
-      repeating-linear-gradient(to bottom, transparent 0px, transparent 29px, #dcdcdc 30px),
-      repeating-linear-gradient(to right,  transparent 0px, transparent 29px, #dcdcdc 30px);
-  }
-  .thumb-inner::before {
-    content: "";
-    position: absolute;
-    top: 14px; bottom: 14px;
-    width: 40px;
-    pointer-events: none;
-    background-image: radial-gradient(circle 12px, #555 12px, transparent 12.5px);
-    background-repeat: repeat-y;
-    background-size: 100% 60px;
-  }
-  .thumb-inner.right-page::before { left: 16px; }
-  .thumb-inner.left-page::before  { right: 16px; }
 
   .thumb-draw-img {
     position: absolute;
     top: 0; left: 0;
-    width: 640px; height: 860px;
+    width: 960px; height: 668px;
   }
   .thumb-frame {
     position: absolute;
@@ -332,30 +217,33 @@
 
   .tool-panel {
     position: fixed;
-    top: 50%;
-    left: 24px;
-    transform: translateY(-50%);
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 58px;
+    transform: none;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 14px 10px;
-    background: rgba(255,255,255,0.06);
-    border-radius: 14px;
-    z-index: 500;
-    max-height: 90vh;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 4px;
+    background: #0d0d0d;
+    border-radius: 0;
+    z-index: 650;
+    max-height: 100vh;
     overflow-y: auto;
   }
   .tool-panel::-webkit-scrollbar { width: 6px; }
   .tool-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
 
   .tool-mode-btn {
-    width: 42px; height: 42px;
+    width: 30px; height: 30px;
     border-radius: 50%;
     background: #333;
     color: #eee;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
+    font-size: 13px;
     cursor: pointer;
     transition: background .15s, transform .1s, opacity .15s;
     flex-shrink: 0;
@@ -365,7 +253,7 @@
   .tool-mode-btn.disabled { opacity: 0.3; pointer-events: none; }
 
   .tool-color {
-    width: 36px; height: 36px;
+    width: 24px; height: 24px;
     border: none;
     border-radius: 50%;
     padding: 0;
@@ -376,23 +264,64 @@
   .tool-color::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
   .tool-color::-webkit-color-swatch { border: 2px solid #fff; border-radius: 50%; }
 
+  .tool-size-wrap {
+    position: relative;
+    width: 20px;
+    height: 50px;
+    flex-shrink: 0;
+  }
   .tool-size {
-    width: 90px;
-    transform: rotate(-90deg);
-    margin: 30px 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50px;
+    margin: 0;
+    transform: translate(-50%, -50%) rotate(90deg);
   }
 
   .tool-divider {
-    width: 28px; height: 1px;
+    width: 20px; height: 1px;
     background: rgba(255,255,255,0.2);
     flex-shrink: 0;
   }
-
+  .pen-size-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+  }
+  .pen-size-presets {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    height: 50px;
+  }
+  .pen-size-dot {
+    border-radius: 50%;
+    border: 1.5px solid #888;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    user-select: none;
+    transition: background .15s, border-color .15s, transform .1s;
+  }
+  .pen-size-dot:hover { transform: scale(1.15); }
+  .pen-size-dot.active {
+    background: #4a90e2;
+    border-color: #4a90e2;
+  }
+  .pen-size-dot:nth-child(1) { width: 5px;  height: 5px; }
+  .pen-size-dot:nth-child(2) { width: 8px;  height: 8px; }
+  .pen-size-dot:nth-child(3) { width: 11px; height: 11px; }
+  .pen-size-dot:nth-child(4) { width: 16px; height: 16px; }
   .tool-clear-btn, .tool-delete-page-btn {
-    font-size: 11px;
+    font-size: 10px;
     color: #ddd;
     background: rgba(255,255,255,0.08);
-    padding: 6px 8px;
+    padding: 5px 3px;
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
@@ -403,10 +332,10 @@
   .tool-delete-page-btn:hover { background: rgba(192,57,43,0.6); }
 
   .tool-io-btn {
-    font-size: 11px;
+    font-size: 10px;
     color: #ddd;
     background: rgba(255,255,255,0.08);
-    padding: 6px 8px;
+    padding: 5px 3px;
     border-radius: 8px;
     cursor: pointer;
     text-align: center;
@@ -416,7 +345,6 @@
   }
   .tool-io-btn:hover { background: rgba(74,144,226,0.5); }
 
-  /* ================= 縦画面レイアウト：ツールパネルを下部に横並び ================= */
   body.mobile-layout .tool-panel {
     top: auto;
     bottom: 0;
@@ -441,6 +369,26 @@
     width: 1px;
     height: 26px;
     flex-shrink: 0;
+  }
+  body.mobile-layout .pen-size-row {
+    flex-direction: row;
+  }
+  body.mobile-layout .pen-size-row {
+    flex-direction: row;
+  }
+  body.mobile-layout .tool-size-wrap {
+    width: 70px;
+    height: auto;
+  }
+  body.mobile-layout .tool-size {
+    position: static;
+    transform: none;
+    width: 70px;
+  }
+  body.mobile-layout .pen-size-presets {
+    flex-direction: row;
+    height: auto;
+    gap: 4px;
   }
   body.mobile-layout .tool-size {
     transform: none;
@@ -638,6 +586,7 @@
   }
   .add-text-btn:hover { background: #357abd; }
 
+  /* ================= 見開きビュー（1枚のノート画像を拡大表示するだけのシンプル版） ================= */
   .spread-view {
     position: fixed;
     inset: 0;
@@ -645,7 +594,6 @@
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 6px;
     z-index: 600;
   }
   .spread-view.show { display: flex; }
@@ -655,81 +603,16 @@
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    position: relative;
   }
 
   .spread-page {
-    width: var(--spread-page-w, 320px);
-    height: var(--spread-page-h, 430px);
+    width: var(--spread-page-w, 480px);
+    height: var(--spread-page-h, 334px);
     background-color: #fdfdf7;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     overflow: hidden;
     position: relative;
-    cursor: pointer;
-    transition: transform .15s;
-  }
-  .spread-page:hover { transform: scale(1.02); }
-  .spread-page.empty {
-    background-color: #262626;
-    cursor: default;
-  }
-  .spread-page.empty:hover { transform: none; }
-  .spread-page.cover-page {
-    background: linear-gradient(135deg, #6b3f2a, #8a5a3b);
-    background-size: cover;
-    background-position: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #f0e6d6;
-    font-size: 14px;
-    letter-spacing: 2px;
-    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
-  }
-
-  .spread-inner {
-    position: absolute;
-    top: 0; left: 0;
-    width: 640px;
-    height: 860px;
-    transform-origin: top left;
-    pointer-events: none;
-    background-color: #fdfdf7;
-  }
-  .spread-inner.right-page,
-  .spread-inner.left-page {
-    background-image:
-      repeating-linear-gradient(to bottom, transparent 0px, transparent 29px, #dcdcdc 30px),
-      repeating-linear-gradient(to right,  transparent 0px, transparent 29px, #dcdcdc 30px);
-  }
-  .spread-inner::before {
-    content: "";
-    position: absolute;
-    top: 14px; bottom: 14px;
-    width: 40px;
-    pointer-events: none;
-    background-image: radial-gradient(circle 12px, #555 12px, transparent 12.5px);
-    background-repeat: repeat-y;
-    background-size: 100% 60px;
-  }
-  .spread-inner.right-page::before { left: 16px; }
-  .spread-inner.left-page::before  { right: 16px; }
-
-  .spread-draw-img {
-    position: absolute;
-    top: 0; left: 0;
-    width: 640px; height: 860px;
-  }
-  .spread-frame {
-    position: absolute;
-    transform-origin: center center;
-  }
-  .spread-frame img { width: 100%; height: 100%; display: block; }
-  .spread-frame .spread-text {
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; color: #222;
-    white-space: pre-wrap; word-break: break-word;
-    overflow: hidden;
   }
 
   .spread-page-label {
@@ -755,6 +638,7 @@
   .spread-nav-prev { left: 24px; }
   .spread-nav-next { right: 24px; }
 
+
   .spread-close-btn {
     position: absolute;
     top: 20px;
@@ -770,7 +654,6 @@
   .spread-close-btn:hover { background: rgba(192,57,43,1); }
 
   @media (max-width: 700px), (max-height: 700px) {
-    .spread-view { gap: 3px; }
     .spread-page-wrap { gap: 3px; }
     .spread-nav { width: 34px; height: 34px; font-size: 16px; }
     .spread-nav-prev { left: 4px; }
@@ -784,17 +667,12 @@
 
 <div class="stage" id="stage">
   <div class="zoom-layer" id="zoomLayer">
-    <div class="book-wrap">
-      <div class="notebook right-page" id="notebook">
-        <canvas class="draw-canvas" id="drawCanvas" width="640" height="860"></canvas>
+    <div class="book-wrap" id="bookWrap">
+      <div class="notebook" id="notebook">
+        <canvas class="draw-canvas" id="drawCanvas" width="1920" height="1336"></canvas>
         <div class="hint" id="hint">ここに画像をドラッグ＆ドロップ／クリックでテキスト追加</div>
         <div class="page-edge page-edge-left">‹</div>
         <div class="page-edge page-edge-right">›</div>
-      </div>
-      <div class="cover" id="cover">
-        <div class="cover-shade"></div>
-        <span class="cover-title">SKETCH BOOK</span>
-        <div class="cover-replace-btn" id="coverReplaceBtn">差し替え</div>
       </div>
     </div>
   </div>
@@ -806,38 +684,42 @@
   <div class="tool-mode-btn" id="undoBtn" title="元に戻す (Ctrl+Z)">↩</div>
   <div class="tool-divider"></div>
   <div class="tool-mode-btn" id="importImageBtn" title="画像をインポート">🖼️</div>
-  <div class="tool-mode-btn" id="spreadViewBtn" title="見開き表示">📖</div>
+  <div class="tool-mode-btn" id="spreadViewBtn" title="拡大表示">📖</div>
   <div class="tool-divider"></div>
   <div class="tool-mode-btn active" id="modeSelectBtn" title="選択・移動モード">🖱</div>
   <div class="tool-mode-btn" id="modePenBtn" title="ペン">✏️</div>
   <div class="tool-mode-btn" id="modeEraserBtn" title="消しゴム">🧹</div>
   <div class="tool-divider"></div>
-  <input type="color" class="tool-color" id="penColor" value="#1a1a1a" title="ペンの色">
-  <input type="range" class="tool-size" id="penSize" min="1" max="40" value="4" title="太さ">
+    <input type="color" class="tool-color" id="penColor" value="#1a1a1a" title="ペンの色">
+  <div class="pen-size-row" id="penSizeRow">
+    <div class="tool-size-wrap">
+      <input type="range" class="tool-size" id="penSize" min="1" max="40" value="4" title="太さ">
+    </div>
+    <div class="pen-size-presets" id="penSizePresets">
+      <div class="pen-size-dot" data-size="1" title="1px"></div>
+      <div class="pen-size-dot" data-size="2" title="2px"></div>
+      <div class="pen-size-dot" data-size="3" title="3px"></div>
+      <div class="pen-size-dot" data-size="10" title="10px"></div>
+    </div>
+  </div>
   <div class="tool-divider"></div>
-  <div class="tool-clear-btn" id="clearDrawBtn">このページの<br>描画を消す</div>
-  <div class="tool-delete-page-btn" id="pageDeleteBtn">このページを<br>削除</div>
+  <div class="tool-clear-btn" id="clearDrawBtn">✎削除</div>
+  <div class="tool-delete-page-btn" id="pageDeleteBtn">□消去</div>
   <div class="tool-divider"></div>
-  <div class="tool-io-btn" id="exportBtn">📤 書き出す</div>
-  <div class="tool-io-btn" id="importBtn">📥 読み込む</div>
+  <div class="tool-io-btn" id="exportBtn">save</div>
+  <div class="tool-io-btn" id="importBtn">road</div>
 </div>
 
 <input type="file" id="imageImportInput" accept="image/*" multiple style="display:none;">
 <input type="file" id="jsonImportInput" accept="application/json,.json" style="display:none;">
-<input type="file" id="coverImageInput" accept="image/*" style="display:none;">
 
 <div class="thumb-panel" id="thumbPanel"></div>
 
 <div class="spread-view" id="spreadView">
-  <div class="spread-close-btn" id="spreadCloseBtn">✕ 閉じる</div>
   <div class="spread-nav spread-nav-prev" id="spreadPrevBtn">‹</div>
   <div class="spread-page-wrap">
-    <div class="spread-page empty" id="spreadLeftPage"></div>
-    <div class="spread-page-label" id="spreadLeftLabel"></div>
-  </div>
-  <div class="spread-page-wrap">
-    <div class="spread-page" id="spreadRightPage"></div>
-    <div class="spread-page-label" id="spreadRightLabel"></div>
+    <div class="spread-page" id="spreadPage"></div>
+    <div class="spread-page-label" id="spreadPageLabel"></div>
   </div>
   <div class="spread-nav spread-nav-next" id="spreadNextBtn">›</div>
 </div>
@@ -845,10 +727,19 @@
 <div class="blackout" id="blackout"></div>
 
 <script>
-const cover = document.getElementById('cover');
+/* ============================================================
+   ノートの見開き画像（背景）
+   ↓ここに実際の画像ファイルのパス（またはbase64データ）を指定してください。
+   ノート本体・サムネイル・拡大表示、すべてこの1枚の画像を共通で使います。
+   ============================================================ */
+const NOTEBOOK_BG_URL = 'note.jpg';
+const CANVAS_SCALE = 3; // 手書きキャンバスの解像度倍率(1=等倍, 2=2倍の細かさ)
+
+const cover = null; // (表紙機能は廃止)
 const stage = document.getElementById('stage');
 const zoomLayer = document.getElementById('zoomLayer');
 const notebook = document.getElementById('notebook');
+const bookWrap = document.getElementById('bookWrap');
 const blackout = document.getElementById('blackout');
 const hint = document.getElementById('hint');
 const thumbPanel = document.getElementById('thumbPanel');
@@ -862,6 +753,37 @@ const modePenBtn = document.getElementById('modePenBtn');
 const modeEraserBtn = document.getElementById('modeEraserBtn');
 const penColorInput = document.getElementById('penColor');
 const penSizeInput = document.getElementById('penSize');
+const penSizePresets = document.querySelectorAll('.pen-size-dot');
+
+function updatePenSizePresetActive() {
+  const current = penSizeInput.value;
+  penSizePresets.forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.size === current);
+  });
+}
+
+penSizePresets.forEach(dot => {
+  dot.addEventListener('click', () => {
+    const val = parseFloat(dot.dataset.size);
+    penSizeInput.value = val;
+    if (mode === 'eraser') {
+      currentEraserSize = val;
+    } else {
+      currentPenSize = val;
+    }
+    updatePenSizePresetActive();
+  });
+});
+
+penSizeInput.addEventListener('input', () => {
+  const val = parseFloat(penSizeInput.value) || 4;
+  if (mode === 'eraser') {
+    currentEraserSize = val;
+  } else {
+    currentPenSize = val;
+  }
+  updatePenSizePresetActive();
+});
 const clearDrawBtn = document.getElementById('clearDrawBtn');
 const undoBtn = document.getElementById('undoBtn');
 const importImageBtn = document.getElementById('importImageBtn');
@@ -871,40 +793,71 @@ const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
 const jsonImportInput = document.getElementById('jsonImportInput');
 
-const coverReplaceBtn = document.getElementById('coverReplaceBtn');
-const coverImageInput = document.getElementById('coverImageInput');
-
 const spreadViewBtn = document.getElementById('spreadViewBtn');
 const spreadView = document.getElementById('spreadView');
-const spreadLeftPage = document.getElementById('spreadLeftPage');
-const spreadRightPage = document.getElementById('spreadRightPage');
-const spreadLeftLabel = document.getElementById('spreadLeftLabel');
-const spreadRightLabel = document.getElementById('spreadRightLabel');
+const spreadPage = document.getElementById('spreadPage');
+const spreadPageLabel = document.getElementById('spreadPageLabel');
 const spreadPrevBtn = document.getElementById('spreadPrevBtn');
 const spreadNextBtn = document.getElementById('spreadNextBtn');
-const spreadCloseBtn = document.getElementById('spreadCloseBtn');
 
-let opened = false;
 let zIndexCounter = 20;
 let mode = 'select';
-let isOnCover = false;
 
-const STORAGE_KEY = 'sketchbook-book-v3';
+const STORAGE_KEY = 'sketchbook-book-v4';
+/* ============================================================
+   保存先をlocalStorage→IndexedDBに変更
+   （localStorageは5～10MBほどで頭打ちになるが、IndexedDBは
+     ブラウザ・空き容量次第で数百MB～数GB規模まで保存できる）
+   ============================================================ */
+const IDB_NAME = 'sketchbook-idb';
+const IDB_STORE = 'data';
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSet(key, value) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
 const EDGE_SIZE = 46;
-const THUMB_W = 74, THUMB_H = 100;
-let SPREAD_PAGE_W = 320;
-let SPREAD_PAGE_H = 430;
-const BOOK_W = 640, BOOK_H = 860;
+const THUMB_W = 74, THUMB_H = 52;
+let SPREAD_PAGE_W = 480;
+let SPREAD_PAGE_H = 334;
+const BOOK_W = 960, BOOK_H = 668;
 
-/* 見開きページのサイズを画面に収まるよう動的に計算（スマホで見切れないように） */
+/* 見開きページのサイズを画面に収まるよう動的に計算 */
 function updateSpreadPageSize() {
-  const availW = window.innerWidth;
+  const isMobile = document.body.classList.contains('mobile-layout');
+  const sidebarReserve = isMobile ? 0 : (toolPanel.offsetWidth || 0);
+  const availW = window.innerWidth - sidebarReserve;
   const availH = window.innerHeight;
   const navReserve = Math.max(60, Math.min(110, availW * 0.14)) * 2;
-  const gap = 10;
   const vMargin = Math.max(90, availH * 0.16);
 
-  const maxW = Math.max(90, (availW - navReserve - gap) / 2);
+  const maxW = Math.max(90, availW - navReserve);
   const maxH = Math.max(120, availH - vMargin);
   const ratio = BOOK_W / BOOK_H;
 
@@ -920,21 +873,22 @@ function updateSpreadPageSize() {
   spreadView.style.setProperty('--spread-page-w', w + 'px');
   spreadView.style.setProperty('--spread-page-h', h + 'px');
 
-  if (spreadView.classList.contains('show')) {
-    renderSpread();
+  if (spreadView.classList.contains('show') && spreadEditMode) {
+    mountNotebookInSpread();
   }
 }
 
 let pages = [];
 let currentIndex = 0;
-let currentSpread = -1;
-let coverImageDataUrl = null;
+
+/* 見開き表示中：ノート本体を見開きビューに移動しているかどうか */
+let spreadEditMode = false;
 
 let croppingFrame = null;
 let cropStartData = null;
 
 /* ============================================================
-   ズーム・パン（無限ズーム対応の独自実装）
+   ズーム・パン
    ============================================================ */
 let bookBaseScale = 1;
 let bookUserScale = 1;
@@ -943,7 +897,10 @@ const MIN_USER_SCALE = 1;
 const MAX_USER_SCALE = 8;
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-function getViewScale() { return bookBaseScale * bookUserScale; }
+function getViewScale() {
+  if (spreadEditMode) return SPREAD_PAGE_W / BOOK_W;
+  return bookBaseScale * bookUserScale;
+}
 
 function computeBaseScale() {
   const margin = 0.94;
@@ -976,13 +933,12 @@ function screenToNotebook(clientX, clientY) {
 }
 
 /* ============================================================
-   UIレイアウト切り替え（縦画面：下部ツールバー／上部サムネイル）
+   UIレイアウト切り替え
    ============================================================ */
 const layoutToggleBtn = document.getElementById('layoutToggleBtn');
 const LAYOUT_STORAGE_KEY = 'sketchbook-layout-mode';
 
 function detectAutoMobileLayout() {
-  // スマホの縦持ちらしき画面サイズを自動判定（判定できない場合はボタンで手動切替）
   return window.innerHeight > window.innerWidth && Math.min(window.innerWidth, window.innerHeight) <= 820;
 }
 
@@ -997,9 +953,14 @@ function applyLayoutMode() {
     const bottomH = toolPanel.offsetHeight || 0;
     stage.style.top = topH + 'px';
     stage.style.bottom = bottomH + 'px';
+    stage.style.left = '';
+    spreadView.style.left = '';
   } else {
+    const leftW = toolPanel.offsetWidth || 0;
     stage.style.top = '';
     stage.style.bottom = '';
+    stage.style.left = leftW + 'px';
+    spreadView.style.left = leftW + 'px';
   }
 
   computeBaseScale();
@@ -1028,7 +989,7 @@ function distOf(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
 function midOf(p1, p2) { return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }; }
 
 window.addEventListener('pointerdown', (e) => {
-  if (e.pointerType !== 'touch') return;
+  if (e.pointerType !== 'touch' || spreadEditMode) return;
   touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (touchPointers.size === 2) {
     const pts = [...touchPointers.values()];
@@ -1050,7 +1011,7 @@ window.addEventListener('pointerdown', (e) => {
 }, { capture: true });
 
 window.addEventListener('pointermove', (e) => {
-  if (e.pointerType !== 'touch') return;
+  if (e.pointerType !== 'touch' || spreadEditMode) return;
   if (!touchPointers.has(e.pointerId)) return;
   touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (isPinching && touchPointers.size === 2) {
@@ -1078,7 +1039,6 @@ function releaseTouchPointer(e) {
 window.addEventListener('pointerup', releaseTouchPointer, { capture: true });
 window.addEventListener('pointercancel', releaseTouchPointer, { capture: true });
 
-/* デスクトップ：ホイールでもズーム／ダブルクリックでリセット */
 stage.addEventListener('wheel', (e) => {
   e.preventDefault();
   const delta = -e.deltaY * 0.0015;
@@ -1092,7 +1052,45 @@ stage.addEventListener('dblclick', (e) => {
   panX = 0; panY = 0;
   applyZoomTransform();
 });
+/* ============================================================
+   中クリック(ホイールクリック)ドラッグでパン（3Dソフト風の操作感）
+   ============================================================ */
+let isMiddlePanning = false;
+let middlePanStart = { x: 0, y: 0 };
+let middlePanStartPan = { x: 0, y: 0 };
 
+// 中ボタンを押した瞬間、ブラウザ標準のオートスクロールカーソルが出るのを防ぐ
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 1) e.preventDefault();
+});
+
+window.addEventListener('pointerdown', (e) => {
+  if (e.button !== 1) return;
+  if (spreadEditMode) return; // 見開き編集中はパン対象が別要素になるため無効化
+  e.preventDefault();
+  isMiddlePanning = true;
+  middlePanStart = { x: e.clientX, y: e.clientY };
+  middlePanStartPan = { x: panX, y: panY };
+  document.body.style.cursor = 'grabbing';
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (!isMiddlePanning) return;
+  e.preventDefault();
+  panX = middlePanStartPan.x + (e.clientX - middlePanStart.x);
+  panY = middlePanStartPan.y + (e.clientY - middlePanStart.y);
+  applyZoomTransform();
+});
+
+function endMiddlePan(e) {
+  if (!isMiddlePanning) return;
+  isMiddlePanning = false;
+  document.body.style.cursor = '';
+  clampPan();
+  applyZoomTransform();
+}
+window.addEventListener('pointerup', endMiddlePan);
+window.addEventListener('pointercancel', endMiddlePan);
 /* ============================================================
    Undo
    ============================================================ */
@@ -1100,10 +1098,8 @@ const MAX_UNDO = 25;
 let undoStack = [];
 
 function snapshotStateString() {
-  if (!isOnCover) {
-    pages[currentIndex].frames = collectFramesFromDOM();
-  }
-  return JSON.stringify({ pages, currentIndex, isOnCover, coverImageDataUrl });
+  pages[currentIndex].frames = collectFramesFromDOM();
+  return JSON.stringify({ pages, currentIndex });
 }
 
 function pushUndo() {
@@ -1117,20 +1113,9 @@ function undo() {
   const snapshot = JSON.parse(undoStack.pop());
   pages = snapshot.pages;
   currentIndex = Math.min(snapshot.currentIndex, pages.length - 1);
-  isOnCover = snapshot.isOnCover || false;
-  coverImageDataUrl = snapshot.coverImageDataUrl || null;
-  applyCoverImage();
+  renderPage(currentIndex);
 
-  if (isOnCover) {
-    showCover();
-  } else {
-    hideCover();
-    renderPage(currentIndex);
-  }
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover, coverImageDataUrl }));
-  } catch (e) { /* ignore */ }
+  idbSet(STORAGE_KEY, { currentIndex, pages }).catch(() => {});
   renderThumbnails();
   updateUndoButtonState();
 }
@@ -1154,10 +1139,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ============================================================
-   画像インポート（ボタン経由・iOS対応）
+   画像インポート
    ============================================================ */
 importImageBtn.addEventListener('click', () => {
-  if (isOnCover) return;
   imageImportInput.value = '';
   imageImportInput.click();
 });
@@ -1181,57 +1165,19 @@ imageImportInput.addEventListener('change', (e) => {
 });
 
 /* ============================================================
-   表紙画像の差し替え
-   ============================================================ */
-coverReplaceBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  coverImageInput.value = '';
-  coverImageInput.click();
-});
-coverReplaceBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-
-coverImageInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    pushUndo();
-    coverImageDataUrl = ev.target.result;
-    applyCoverImage();
-    persistAll();
-  };
-  reader.readAsDataURL(file);
-});
-
-function applyCoverImage() {
-  if (coverImageDataUrl) {
-    cover.style.backgroundImage = `url(${coverImageDataUrl})`;
-    cover.classList.add('has-image');
-  } else {
-    cover.style.backgroundImage = '';
-    cover.classList.remove('has-image');
-  }
-}
-
-/* ============================================================
    JSONエクスポート／インポート
    ============================================================ */
 function pad2(n) { return String(n).padStart(2, '0'); }
 
 exportBtn.addEventListener('click', () => {
-  if (!isOnCover) {
-    pages[currentIndex].frames = collectFramesFromDOM();
-    pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
-  }
+  pages[currentIndex].frames = collectFramesFromDOM();
+  pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
 
   const exportData = {
-    formatVersion: 2,
+    formatVersion: 3,
     exportedAt: new Date().toISOString(),
-    opened,
     currentIndex,
-    pages,
-    isOnCover,
-    coverImageDataUrl
+    pages
   };
 
   let jsonStr;
@@ -1288,26 +1234,8 @@ jsonImportInput.addEventListener('change', (e) => {
 
     pages = data.pages;
     currentIndex = Math.min(data.currentIndex || 0, pages.length - 1);
-    opened = data.opened !== undefined ? !!data.opened : true;
-    isOnCover = data.isOnCover || false;
-    coverImageDataUrl = data.coverImageDataUrl || null;
-    applyCoverImage();
 
-    if (opened) {
-      cover.classList.add('no-anim', 'open');
-      cover.style.pointerEvents = 'none';
-    } else {
-      cover.classList.remove('open');
-      cover.style.pointerEvents = '';
-    }
-
-    if (isOnCover) {
-      showCover();
-    } else {
-      hideCover();
-      renderPage(currentIndex);
-    }
-
+    renderPage(currentIndex);
     persistAll();
     alert('読み込みが完了しました。');
   };
@@ -1321,7 +1249,6 @@ jsonImportInput.addEventListener('change', (e) => {
    モード切替
    ============================================================ */
 function setMode(newMode) {
-  if (isOnCover) return;
   mode = newMode;
   modeSelectBtn.classList.toggle('active', mode === 'select');
   modePenBtn.classList.toggle('active', mode === 'pen');
@@ -1333,6 +1260,13 @@ function setMode(newMode) {
     document.querySelectorAll('.frame.selected').forEach(f => f.classList.remove('selected'));
     removeAddTextButton();
   }
+
+  updateSizeUIForMode();
+}
+
+function updateSizeUIForMode() {
+  penSizeInput.value = (mode === 'eraser') ? currentEraserSize : currentPenSize;
+  updatePenSizePresetActive();
 }
 modeSelectBtn.addEventListener('click', () => setMode('select'));
 modePenBtn.addEventListener('click', () => setMode('pen'));
@@ -1346,34 +1280,27 @@ let lastX = 0, lastY = 0;
 let currentStrokeStartTime = 0;
 let strokeTraveledDist = 0;
 let lastMoveTime = 0;
-let smoothedSpeed = 0; // キャンバスpx/ms（指数移動平均でなめらかに）
+let smoothedSpeed = 0;
 
-/* ---- ボールペン／万年筆っぽい書き味 ----
-   描き始め・描き終わりだけ少し太く、柔らかい（にじんだ）点にする。
-   ペンモードのみ有効（消しゴムは均一なまま）。 */
-const PEN_BLOB_SCALE = 1.55;  // 描き始め・描き終わりの太さの倍率
-const PEN_TAPER_DIST = 11;    // この距離(キャンバスpx)で通常の太さへ戻す（小さい文字が丸ごとぼけないよう、範囲を半分に縮小）
+const PEN_BLOB_SCALE = 1.55;
+const PEN_TAPER_DIST = 11 * CANVAS_SCALE;
 
 function widthMultiplierAt(dist) {
   if (dist >= PEN_TAPER_DIST) return 1;
   const t = dist / PEN_TAPER_DIST;
-  const eased = 1 - Math.pow(1 - t, 2); // イーズアウトで滑らかに戻す
+  const eased = 1 - Math.pow(1 - t, 2);
   return PEN_BLOB_SCALE - (PEN_BLOB_SCALE - 1) * eased;
 }
 
-/* ---- 速いストロークほど少し細く・少し薄くなる表現 ----
-   ペン先の速度（キャンバスpx/ms）が一定より速くなるにつれて、
-   線幅を設定サイズより絞り、それに比例してインクの不透明度も下げる。
-   ゆっくり書いたときは太さ・濃さともそのまま。 */
-const SPEED_THIN_START   = 0.35; // これ(px/ms)を超えたら細く・薄くし始める
-const SPEED_THIN_MAX      = 1.6; // これ(px/ms)以上で最大まで細く・薄くなる
-const SPEED_THIN_FLOOR    = 0.72; // 最大まで細くなったときの太さ倍率（下限）
-const SPEED_OPACITY_FLOOR = 0.5;  // 最大まで細くなったときの不透明度（下限＝50%）
+const SPEED_THIN_START   = 0.05 * CANVAS_SCALE;
+const SPEED_THIN_MAX      = 1.6 * CANVAS_SCALE;
+const SPEED_THIN_FLOOR    = 0.72;
+const SPEED_OPACITY_FLOOR = 0.5;
 
 function speedEaseFactor(speed) {
   if (speed <= SPEED_THIN_START) return 0;
   const t = Math.min(1, (speed - SPEED_THIN_START) / (SPEED_THIN_MAX - SPEED_THIN_START));
-  return t * t; // 加速に応じて滑らかに変化
+  return t * t;
 }
 function speedWidthMultiplier(easeT) {
   return 1 - easeT * (1 - SPEED_THIN_FLOOR);
@@ -1390,7 +1317,6 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-/* 描き始め／描き終わりの「インク溜まり」を柔らかいグラデーションで表現 */
 function drawPenBlob(x, y, radius) {
   const color = penColorInput.value;
   ctx.save();
@@ -1406,12 +1332,6 @@ function drawPenBlob(x, y, radius) {
   ctx.restore();
 }
 
-/* ---- ピンチ開始時の誤描画を取り消す ----
-   2本指ズームをしようとした時、指が完全に同時には着地しないため、
-   最初の指だけが一瞬「描画」として扱われ、短い線が引かれてしまうことがある。
-   その対策として、2本指目が置かれた瞬間に「直前・ごく短時間で始まった
-   ストローク」があれば描画前の状態に戻す。通常の片手描画（タップ／速いドラッグ
-   問わず）には一切遅延を入れず、これまでどおり即座に描ける。 */
 const ACCIDENTAL_STROKE_MS = 220;
 
 function canvasPos(e) {
@@ -1422,7 +1342,7 @@ function canvasPos(e) {
 }
 
 drawCanvas.addEventListener('pointerdown', (e) => {
-  if (mode === 'select' || isOnCover) return;
+  if (mode === 'select') return;
   if (isPinching) return;
   if (e.cancelable) e.preventDefault();
   pushUndo();
@@ -1437,10 +1357,10 @@ drawCanvas.addEventListener('pointerdown', (e) => {
 
   applyStrokeStyle();
   if (mode === 'pen') {
-    drawPenBlob(p.x, p.y, (getPenSize() / 2) * PEN_BLOB_SCALE);
+    drawPenBlob(p.x, p.y, (getPenSize() / 2) * PEN_BLOB_SCALE * CANVAS_SCALE);
   } else {
     ctx.beginPath();
-    ctx.arc(p.x, p.y, getEraserSize() / 2, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, (getEraserSize() / 2) * CANVAS_SCALE, 0, Math.PI * 2);
     ctx.fill();
   }
 }, { passive: false });
@@ -1454,9 +1374,9 @@ drawCanvas.addEventListener('pointermove', (e) => {
   strokeTraveledDist += segLen;
 
   const now = performance.now();
-  const dt = Math.max(1, now - lastMoveTime); // 0除算・異常値防止で最小1ms
+  const dt = Math.max(1, now - lastMoveTime);
   const instSpeed = segLen / dt;
-  smoothedSpeed = smoothedSpeed * 0.65 + instSpeed * 0.35; // なめらかに追従
+  smoothedSpeed = smoothedSpeed * 0.65 + instSpeed * 0.35;
   lastMoveTime = now;
 
   ctx.beginPath();
@@ -1468,7 +1388,7 @@ drawCanvas.addEventListener('pointermove', (e) => {
     const taperMult = widthMultiplierAt(segStartDist + segLen / 2);
     const easeT = speedEaseFactor(smoothedSpeed);
     const speedMult = speedWidthMultiplier(easeT);
-    ctx.lineWidth = getPenSize() * taperMult * speedMult;
+    ctx.lineWidth = getPenSize() * taperMult * speedMult * CANVAS_SCALE;
     ctx.globalAlpha = speedOpacityMultiplier(easeT);
   }
 
@@ -1477,7 +1397,6 @@ drawCanvas.addEventListener('pointermove', (e) => {
   lastX = p.x; lastY = p.y;
 }, { passive: false });
 
-/* 2本指目が置かれた瞬間などに、始まったばかりのストロークを取り消す */
 function cancelStrokeAsAccidental() {
   if (!isDrawing) return;
   isDrawing = false;
@@ -1492,7 +1411,7 @@ function endStroke() {
   if (!isDrawing) return;
   isDrawing = false;
   if (mode === 'pen') {
-    drawPenBlob(lastX, lastY, (getPenSize() / 2) * PEN_BLOB_SCALE);
+    drawPenBlob(lastX, lastY, (getPenSize() / 2) * PEN_BLOB_SCALE * CANVAS_SCALE);
   }
   persistDrawing();
 }
@@ -1500,25 +1419,27 @@ drawCanvas.addEventListener('pointerup', endStroke);
 drawCanvas.addEventListener('pointerleave', endStroke);
 drawCanvas.addEventListener('pointercancel', endStroke);
 
-function getPenSize() { return parseFloat(penSizeInput.value) || 4; }
-function getEraserSize() { return getPenSize() * 3; }
+let currentPenSize = 4;
+let currentEraserSize = 12;
+
+function getPenSize() { return currentPenSize; }
+function getEraserSize() { return currentEraserSize; }
 
 function applyStrokeStyle() {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   if (mode === 'eraser') {
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.lineWidth = getEraserSize();
+    ctx.lineWidth = getEraserSize() * CANVAS_SCALE;
   } else {
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = penColorInput.value;
     ctx.fillStyle = penColorInput.value;
-    ctx.lineWidth = getPenSize();
+    ctx.lineWidth = getPenSize() * CANVAS_SCALE;
   }
 }
 
 clearDrawBtn.addEventListener('click', () => {
-  if (isOnCover) return;
   const ok = confirm('このページの手書きをすべて消しますか？');
   if (!ok) return;
   pushUndo();
@@ -1527,7 +1448,6 @@ clearDrawBtn.addEventListener('click', () => {
 });
 
 function persistDrawing() {
-  if (isOnCover) return;
   pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
   persistAll();
 }
@@ -1543,127 +1463,56 @@ function loadDrawingIntoCanvas(dataUrl) {
 /* ============================================================
    保存・復元
    ============================================================ */
+function frameElementToData(frame) {
+  const isText = !!frame.querySelector('.text-content');
+  return {
+    type: isText ? 'text' : 'image',
+    src: isText ? null : frame.querySelector('img').src,
+    text: isText ? frame.querySelector('.text-content').innerText : null,
+    left: parseFloat(frame.style.left),
+    top: parseFloat(frame.style.top),
+    w: parseFloat(frame.style.width),
+    h: parseFloat(frame.style.height),
+    angle: parseFloat(frame.dataset.angle) || 0,
+    scale: parseFloat(frame.dataset.scale) || 1,
+    z: parseInt(frame.style.zIndex) || 20
+  };
+}
+
 function collectFramesFromDOM() {
-  return [...notebook.querySelectorAll('.frame')].map(frame => {
-    const isText = !!frame.querySelector('.text-content');
-    return {
-      type: isText ? 'text' : 'image',
-      src: isText ? null : frame.querySelector('img').src,
-      text: isText ? frame.querySelector('.text-content').innerText : null,
-      left: parseFloat(frame.style.left),
-      top: parseFloat(frame.style.top),
-      w: parseFloat(frame.style.width),
-      h: parseFloat(frame.style.height),
-      angle: parseFloat(frame.dataset.angle) || 0,
-      scale: parseFloat(frame.dataset.scale) || 1,
-      z: parseInt(frame.style.zIndex) || 20
-    };
-  });
+  return [...notebook.querySelectorAll('.frame')].map(frameElementToData);
 }
 
 function persistAll() {
-  try {
-    if (!isOnCover) {
-      pages[currentIndex].frames = collectFramesFromDOM();
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ opened, currentIndex, pages, isOnCover, coverImageDataUrl }));
-  } catch (e) {
-    console.warn('保存に失敗しました（容量オーバーの可能性）', e);
-    alert('データ容量が大きすぎて保存できませんでした。画像や手書きの量を減らしてください。');
-  } finally {
-    renderThumbnails();
-  }
-}
-
-function restoreAll() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) {
-    try {
-      const data = JSON.parse(raw);
-      if (data && Array.isArray(data.pages) && data.pages.length > 0) {
-        pages = data.pages;
-        currentIndex = Math.min(data.currentIndex || 0, pages.length - 1);
-        opened = !!data.opened;
-        isOnCover = !!data.isOnCover;
-        coverImageDataUrl = data.coverImageDataUrl || null;
-        return;
-      }
-    } catch (e) { /* ignore */ }
-  }
-  pages = [{ side: 'right', frames: [], drawing: null }];
-  currentIndex = 0;
-  opened = false;
-  isOnCover = false;
-  coverImageDataUrl = null;
-}
-
-/* ============================================================
-   表紙の表示・非表示
-   ============================================================ */
-function showCover() {
-  if (!isOnCover && currentIndex < pages.length) {
-    pages[currentIndex].frames = collectFramesFromDOM();
-    pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
-  }
-
-  isOnCover = true;
-  notebook.classList.add('hidden');
-  cover.classList.remove('open', 'no-anim');
-  cover.style.pointerEvents = '';
-  opened = false;
+  pages[currentIndex].frames = collectFramesFromDOM();
+  const snapshot = { currentIndex, pages };
+  idbSet(STORAGE_KEY, snapshot).catch((e) => {
+    console.warn('保存に失敗しました', e);
+    alert('保存に失敗しました。ブラウザやパソコンの空き容量を確認してください。');
+  });
   renderThumbnails();
 }
 
-function hideCover() {
-  isOnCover = false;
-  notebook.classList.remove('hidden');
-  if (opened) {
-    cover.classList.add('no-anim', 'open');
-    cover.style.pointerEvents = 'none';
-  }
+async function restoreAll() {
+  try {
+    const data = await idbGet(STORAGE_KEY);
+    if (data && Array.isArray(data.pages) && data.pages.length > 0) {
+      pages = data.pages;
+      currentIndex = Math.min(data.currentIndex || 0, pages.length - 1);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  pages = [{ frames: [], drawing: null }];
+  currentIndex = 0;
 }
 
-/* ============================================================
-   本を開く演出
-   ============================================================ */
-cover.addEventListener('click', (e) => {
-  if (opened) return;
-  const rect = cover.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  if (clickX < rect.width / 2) return;
-
-  opened = true;
-  isOnCover = false;
-  blackout.classList.add('show');
-  setTimeout(() => cover.classList.add('open'), 150);
-
-  cover.addEventListener('transitionend', () => {
-    cover.style.pointerEvents = 'none';
-    blackout.classList.remove('show');
-    notebook.classList.remove('hidden');
-    renderPage(currentIndex);
-    persistAll();
-  }, { once: true });
-});
-
-window.addEventListener('DOMContentLoaded', () => {
-  restoreAll();
-  applyCoverImage();
+window.addEventListener('DOMContentLoaded', async () => {
+  await restoreAll();
   applyLayoutMode();
-
-  if (isOnCover) {
-    showCover();
-  } else {
-    hideCover();
-    if (opened) {
-      cover.classList.add('no-anim', 'open');
-      cover.style.pointerEvents = 'none';
-    }
-    renderPage(currentIndex);
-  }
-
+  renderPage(currentIndex);
   renderThumbnails();
   updateUndoButtonState();
+  updateSizeUIForMode();
 });
 
 /* ============================================================
@@ -1673,9 +1522,6 @@ function renderPage(index) {
   notebook.querySelectorAll('.frame').forEach(f => f.remove());
   removeAddTextButton();
 
-  const side = pages[index].side;
-  notebook.classList.toggle('left-page', side === 'left');
-  notebook.classList.toggle('right-page', side !== 'left');
   notebook.classList.toggle('at-start', index === 0);
 
   loadDrawingIntoCanvas(pages[index].drawing);
@@ -1698,22 +1544,22 @@ function renderPage(index) {
   });
 
   hint.style.display = (frames.length || pages[index].drawing) ? 'none' : 'block';
+
+  if (spreadEditMode) updateSpreadLabel();
 }
 
 function goForward() {
-  if (isOnCover) return;
   pages[currentIndex].frames = collectFramesFromDOM();
   const isNewPage = currentIndex === pages.length - 1;
   if (isNewPage) {
     pushUndo();
-    const nextSide = pages.length % 2 === 0 ? 'right' : 'left';
-    pages.push({ side: nextSide, frames: [], drawing: null });
+    pages.push({ frames: [], drawing: null });
   }
   transitionTo(currentIndex + 1);
 }
 
 function goBackward() {
-  if (isOnCover || currentIndex === 0) return;
+  if (currentIndex === 0) return;
   pages[currentIndex].frames = collectFramesFromDOM();
   transitionTo(currentIndex - 1);
 }
@@ -1733,10 +1579,6 @@ function transitionTo(newIndex) {
 /* ============================================================
    ページ削除機能
    ============================================================ */
-function recomputeSides() {
-  pages.forEach((p, i) => { p.side = i % 2 === 0 ? 'right' : 'left'; });
-}
-
 function deletePage(index) {
   if (pages.length <= 1) {
     alert('これ以上ページを削除できません（最低1ページ必要です）。');
@@ -1748,7 +1590,6 @@ function deletePage(index) {
   pushUndo();
 
   pages.splice(index, 1);
-  recomputeSides();
 
   if (index < currentIndex) currentIndex -= 1;
   currentIndex = Math.min(currentIndex, pages.length - 1);
@@ -1758,42 +1599,29 @@ function deletePage(index) {
 }
 
 pageDeleteBtn.addEventListener('click', (e) => {
-  if (isOnCover) return;
   e.stopPropagation();
   deletePage(currentIndex);
 });
 
 /* ============================================================
-   サムネイル一覧（表紙含む・ドラッグで入れ替え）
+   サムネイル一覧（ドラッグで入れ替え）
    ============================================================ */
 let draggedThumb = null;
 let draggedIndex = -1;
 
 function renderThumbnails() {
   thumbPanel.innerHTML = '';
-  const scale = THUMB_W / 640;
-
-  const coverThumb = document.createElement('div');
-  coverThumb.className = 'thumb-item cover-thumb' + (isOnCover ? ' active' : '');
-  coverThumb.textContent = 'SKETCH BOOK';
-  if (coverImageDataUrl) {
-    coverThumb.style.backgroundImage = `url(${coverImageDataUrl})`;
-  }
-  coverThumb.addEventListener('click', () => {
-    if (isOnCover) return;
-    showCover();
-    persistAll();
-  });
-  thumbPanel.appendChild(coverThumb);
+  const scale = THUMB_W / BOOK_W;
 
   pages.forEach((page, index) => {
     const item = document.createElement('div');
-    item.className = 'thumb-item' + (!isOnCover && index === currentIndex ? ' active' : '');
+    item.className = 'thumb-item' + (index === currentIndex ? ' active' : '');
+    item.style.backgroundImage = `url('${NOTEBOOK_BG_URL}')`;
     item.draggable = true;
     item.dataset.index = index;
 
     const inner = document.createElement('div');
-    inner.className = 'thumb-inner ' + (page.side === 'left' ? 'left-page' : 'right-page');
+    inner.className = 'thumb-inner';
     inner.style.transform = `scale(${scale})`;
 
     if (page.drawing) {
@@ -1843,18 +1671,6 @@ function renderThumbnails() {
     item.appendChild(delBtn);
 
     item.addEventListener('click', () => {
-      if (isOnCover) {
-        isOnCover = false;
-        opened = true;
-        notebook.classList.remove('hidden');
-        cover.classList.add('no-anim', 'open');
-        cover.style.pointerEvents = 'none';
-        currentIndex = index;
-        renderPage(currentIndex);
-        persistAll();
-        return;
-      }
-
       if (index === currentIndex) return;
       pages[currentIndex].frames = collectFramesFromDOM();
       pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
@@ -1886,14 +1702,12 @@ function renderThumbnails() {
       const [movedPage] = pages.splice(draggedIndex, 1);
       pages.splice(targetIndex, 0, movedPage);
 
-      if (!isOnCover) {
-        if (currentIndex === draggedIndex) {
-          currentIndex = targetIndex;
-        } else if (draggedIndex < currentIndex && targetIndex >= currentIndex) {
-          currentIndex--;
-        } else if (draggedIndex > currentIndex && targetIndex <= currentIndex) {
-          currentIndex++;
-        }
+      if (currentIndex === draggedIndex) {
+        currentIndex = targetIndex;
+      } else if (draggedIndex < currentIndex && targetIndex >= currentIndex) {
+        currentIndex--;
+      } else if (draggedIndex > currentIndex && targetIndex <= currentIndex) {
+        currentIndex++;
       }
 
       draggedIndex = targetIndex;
@@ -1905,42 +1719,76 @@ function renderThumbnails() {
 }
 
 /* ============================================================
-   見開きプレビュー（表紙も含む）
+   拡大表示（見開きビュー）：この1枚の画像をそのまま拡大するだけ
    ============================================================ */
-function getSpreadPair(spreadNum) {
-  if (spreadNum === -1) return { leftIdx: -2, rightIdx: -1 };
-  if (spreadNum === 0) return { leftIdx: -1, rightIdx: 0 };
-  const leftIdx = spreadNum * 2 - 1;
-  const rightIdx = spreadNum * 2;
-  return {
-    leftIdx: leftIdx < pages.length ? leftIdx : -2,
-    rightIdx: rightIdx < pages.length ? rightIdx : -2
-  };
-}
-
-function maxSpreadIndex() {
-  return Math.max(0, Math.ceil((pages.length - 1) / 2));
-}
-
 function openSpreadView() {
-  if (!opened && !isOnCover) return;
-
-  if (isOnCover) {
-    currentSpread = -1;
-  } else {
-    currentSpread = currentIndex === 0 ? 0 : Math.ceil(currentIndex / 2);
-  }
+  document.body.classList.add('spread-mode');
   updateSpreadPageSize();
-  renderSpread();
+  mountNotebookInSpread();
   spreadView.classList.add('show');
+  updateSpreadNavState();
+  spreadViewBtn.classList.add('active');
 }
 
 function closeSpreadView() {
+  if (!spreadEditMode) return;
+  pages[currentIndex].frames = collectFramesFromDOM();
+  try {
+    pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
+  } catch (err) {
+    console.warn('描画データの保存に失敗しました', err);
+  }
+  unmountNotebookFromSpread();
+  persistAll();
+
   spreadView.classList.remove('show');
+  document.body.classList.remove('spread-mode');
+  computeBaseScale();
+  renderPage(currentIndex);
+  spreadViewBtn.classList.remove('active');
 }
 
-spreadViewBtn.addEventListener('click', openSpreadView);
-spreadCloseBtn.addEventListener('click', closeSpreadView);
+function mountNotebookInSpread() {
+  const scale = SPREAD_PAGE_W / BOOK_W;
+  spreadEditMode = true;
+  notebook.classList.add('in-spread');
+  notebook.style.top = '0';
+  notebook.style.left = '0';
+  notebook.style.width = BOOK_W + 'px';
+  notebook.style.height = BOOK_H + 'px';
+  notebook.style.transformOrigin = 'top left';
+  notebook.style.transform = `scale(${scale})`;
+  spreadPage.appendChild(notebook);
+  updateSpreadLabel();
+}
+
+function unmountNotebookFromSpread() {
+  spreadEditMode = false;
+  notebook.classList.remove('in-spread');
+  notebook.style.top = '';
+  notebook.style.left = '';
+  notebook.style.width = '';
+  notebook.style.height = '';
+  notebook.style.transformOrigin = '';
+  notebook.style.transform = '';
+  bookWrap.appendChild(notebook);
+}
+
+function updateSpreadLabel() {
+  spreadPageLabel.textContent = (currentIndex + 1) + ' / ' + pages.length;
+}
+
+function updateSpreadNavState() {
+  spreadPrevBtn.classList.toggle('disabled', currentIndex <= 0);
+}
+
+spreadViewBtn.addEventListener('click', () => {
+  if (spreadView.classList.contains('show')) {
+    closeSpreadView();
+  } else {
+    openSpreadView();
+  }
+});
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && spreadView.classList.contains('show')) {
@@ -1949,151 +1797,20 @@ document.addEventListener('keydown', (e) => {
 });
 
 spreadPrevBtn.addEventListener('click', () => {
-  if (currentSpread > -1) {
-    currentSpread -= 1;
-    renderSpread();
-  }
+  goBackward();
+  updateSpreadNavState();
 });
 spreadNextBtn.addEventListener('click', () => {
-  if (currentSpread < maxSpreadIndex()) {
-    currentSpread += 1;
-    renderSpread();
-  }
+  goForward();
+  updateSpreadNavState();
 });
-
-function renderSpread() {
-  const { leftIdx, rightIdx } = getSpreadPair(currentSpread);
-  buildPagePreview(spreadLeftPage, leftIdx);
-  buildPagePreview(spreadRightPage, rightIdx);
-
-  if (leftIdx === -2) {
-    spreadLeftLabel.textContent = '';
-  } else if (leftIdx === -1) {
-    spreadLeftLabel.textContent = '表紙';
-  } else {
-    spreadLeftLabel.textContent = leftIdx >= 0 ? (leftIdx + 1) : '';
-  }
-
-  if (rightIdx === -1) {
-    spreadRightLabel.textContent = '表紙';
-  } else {
-    spreadRightLabel.textContent = rightIdx >= 0 ? (rightIdx + 1) : '';
-  }
-
-  spreadPrevBtn.classList.toggle('disabled', currentSpread <= -1);
-  spreadNextBtn.classList.toggle('disabled', currentSpread >= maxSpreadIndex());
-}
-
-function buildPagePreview(container, pageIndex) {
-  container.innerHTML = '';
-  container.onclick = null;
-  container.classList.remove('left-page', 'right-page', 'cover-page');
-  container.style.backgroundImage = '';
-
-  if (pageIndex === -2) {
-    container.classList.add('empty');
-    return;
-  }
-
-  if (pageIndex === -1) {
-    container.classList.remove('empty');
-    container.classList.add('cover-page');
-    container.textContent = 'SKETCH BOOK';
-    if (coverImageDataUrl) {
-      container.style.backgroundImage = `url(${coverImageDataUrl})`;
-    }
-    container.onclick = () => {
-      try {
-        showCover();
-        persistAll();
-      } catch (err) {
-        console.error('表紙表示中にエラーが発生しました', err);
-      } finally {
-        closeSpreadView();
-      }
-    };
-    return;
-  }
-
-  if (pageIndex < 0 || pageIndex >= pages.length) {
-    container.classList.add('empty');
-    return;
-  }
-  container.classList.remove('empty');
-
-  const page = pages[pageIndex];
-
-  const inner = document.createElement('div');
-  inner.className = 'spread-inner ' + (page.side === 'left' ? 'left-page' : 'right-page');
-  const scale = SPREAD_PAGE_W / 640;
-  inner.style.transform = `scale(${scale})`;
-
-  if (page.drawing) {
-    const drawImg = document.createElement('img');
-    drawImg.className = 'spread-draw-img';
-    drawImg.src = page.drawing;
-    inner.appendChild(drawImg);
-  }
-
-  (page.frames || []).forEach(f => {
-    const fr = document.createElement('div');
-    fr.className = 'spread-frame';
-    fr.style.left = f.left + 'px';
-    fr.style.top = f.top + 'px';
-    fr.style.width = f.w + 'px';
-    fr.style.height = f.h + 'px';
-    fr.style.transform = `rotate(${f.angle || 0}deg) scale(${f.scale || 1})`;
-
-    if (f.type === 'image') {
-      const img = document.createElement('img');
-      img.src = f.src;
-      fr.appendChild(img);
-    } else {
-      const txt = document.createElement('div');
-      txt.className = 'spread-text';
-      txt.textContent = f.text || '';
-      fr.appendChild(txt);
-    }
-    inner.appendChild(fr);
-  });
-
-  container.appendChild(inner);
-
-  container.onclick = () => {
-    try {
-      if (!isOnCover) {
-        pages[currentIndex].frames = collectFramesFromDOM();
-        try {
-          pages[currentIndex].drawing = drawCanvas.toDataURL('image/png');
-        } catch (err) {
-          console.warn('描画データの保存に失敗しました（画像の読み込み元が原因の可能性があります）', err);
-        }
-      }
-
-      if (isOnCover) {
-        isOnCover = false;
-        opened = true;
-        notebook.classList.remove('hidden');
-        cover.classList.add('no-anim', 'open');
-        cover.style.pointerEvents = 'none';
-      }
-
-      currentIndex = pageIndex;
-      renderPage(currentIndex);
-      persistAll();
-    } catch (err) {
-      console.error('ページ移動中にエラーが発生しました', err);
-    } finally {
-      closeSpreadView();
-    }
-  };
-}
 
 /* ===== ノート内タップ：端ならページめくり／それ以外はテキスト追加 ===== */
 let notebookTapStart = null;
 
 notebook.addEventListener('pointerdown', (e) => {
-  if (mode !== 'select' || isOnCover) { notebookTapStart = null; return; }
+  if (e.button !== 0) { notebookTapStart = null; return; }
+  if (mode !== 'select') { notebookTapStart = null; return; }
   if (e.target.closest('.frame') || e.target.closest('.add-text-btn')) { notebookTapStart = null; return; }
   notebookTapStart = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
 });
@@ -2109,18 +1826,20 @@ notebook.addEventListener('pointerup', (e) => {
   notebookTapStart = null;
 
   if (Math.hypot(dx, dy) > 12 || dt > 600) return;
-  if (mode !== 'select' || isOnCover) return;
+  if (mode !== 'select') return;
 
   const rect = notebook.getBoundingClientRect();
   const x = start.x - rect.left;
 
-  if (x >= rect.width - EDGE_SIZE) {
-    goForward();
-    return;
-  }
-  if (x <= EDGE_SIZE && currentIndex > 0) {
-    goBackward();
-    return;
+  if (!spreadEditMode) {
+    if (x >= rect.width - EDGE_SIZE) {
+      goForward();
+      return;
+    }
+    if (x <= EDGE_SIZE && currentIndex > 0) {
+      goBackward();
+      return;
+    }
   }
   showAddTextButton({ clientX: start.x, clientY: start.y });
 });
@@ -2128,7 +1847,7 @@ notebook.addEventListener('pointerup', (e) => {
 notebook.addEventListener('pointercancel', () => { notebookTapStart = null; });
 
 notebook.addEventListener('mousemove', (e) => {
-  if (mode !== 'select' || isOnCover) return;
+  if (mode !== 'select' || spreadEditMode) return;
   const rect = notebook.getBoundingClientRect();
   const x = e.clientX - rect.left;
   notebook.classList.toggle('hover-right', x >= rect.width - EDGE_SIZE);
@@ -2143,7 +1862,7 @@ notebook.addEventListener('dragover', (e) => e.preventDefault());
 
 notebook.addEventListener('drop', (e) => {
   e.preventDefault();
-  if (mode !== 'select' || isOnCover) return;
+  if (mode !== 'select') return;
   const { x, y } = screenToNotebook(e.clientX, e.clientY);
 
   if (e.dataTransfer.files && e.dataTransfer.files.length) {
@@ -2205,7 +1924,74 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+/* ============================================================
+   コピー＆ペースト（ノート内フレームの複製 / 外部画像の貼り付け）
+   ============================================================ */
+let internalClipboard = null;
 
+function isEditingText() {
+  const active = document.activeElement;
+  return !!(active && active.classList && active.classList.contains('text-content') && active.classList.contains('editing'));
+}
+
+document.addEventListener('keydown', (e) => {
+  const isCopyKey = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c';
+  const isPasteKey = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v';
+
+  if (isEditingText()) return; // テキスト編集中は通常のコピペを優先する
+
+  if (isCopyKey) {
+    const sel = document.querySelector('.frame.selected');
+    if (sel) {
+      internalClipboard = frameElementToData(sel);
+    }
+  }
+
+  if (isPasteKey && internalClipboard) {
+    e.preventDefault();
+    pushUndo();
+    const data = internalClipboard;
+    const offset = 24;
+    buildFrame({
+      type: data.type,
+      src: data.src,
+      text: data.text,
+      x: data.left + data.w / 2 + offset,
+      y: data.top + data.h / 2 + offset,
+      w: data.w,
+      h: data.h,
+      angle: data.angle,
+      scale: data.scale
+    });
+    persistAll();
+  }
+});
+
+/* 外部（OSクリップボード）からの画像貼り付け対応 */
+document.addEventListener('paste', (e) => {
+  if (isEditingText()) return; // テキスト編集中は通常のペーストを優先
+  if (mode !== 'select') return;
+
+  const items = e.clipboardData ? e.clipboardData.items : null;
+  if (!items) return;
+
+  const imageItems = [...items].filter(item => item.type && item.type.startsWith('image/'));
+  if (imageItems.length === 0) return;
+
+  // 透過情報を保持できるPNGがあれば優先して使う（無ければ他の画像形式にフォールバック）
+  const pngItem = imageItems.find(item => item.type === 'image/png');
+  const chosenItem = pngItem || imageItems[0];
+
+  const file = chosenItem.getAsFile();
+  if (!file) return;
+
+  e.preventDefault();
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    createImageFrame(ev.target.result, BOOK_W / 2, BOOK_H / 2);
+  };
+  reader.readAsDataURL(file);
+});
 /* ===== 画像フレーム生成 ===== */
 function createImageFrame(src, x, y) {
   hint.style.display = 'none';
@@ -2317,7 +2103,8 @@ function escapeHtml(str) {
 function initFrame(frame) {
   frame.addEventListener('dragstart', e => e.preventDefault());
 
-  frame.addEventListener('pointerdown', (e) => {
+frame.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return; // 左クリック以外（中クリック等）は無視してパン操作を優先させる
     if (mode !== 'select') return;
     if (isPinching) return;
     if (e.target.closest('.handle') || e.target.closest('.tool-btn') || e.target.closest('.crop-control-btn') || e.target.closest('.crop-handle')) return;
@@ -2456,7 +2243,7 @@ function selectFrame(frame) {
   frame.style.zIndex = ++zIndexCounter;
 }
 
-/* ===== 移動（ノート内部座標系で計算） ===== */
+/* ===== 移動 ===== */
 function startMove(e, frame) {
   const startPt = screenToNotebook(e.clientX, e.clientY);
   const startLeft = parseFloat(frame.style.left);
@@ -2485,9 +2272,7 @@ function startMove(e, frame) {
   frame.addEventListener('lostpointercapture', onUp);
 }
 
-/* ============================================================
-   拡大縮小：掴んだ頂点の対角を固定点として拡縮（ノート内部座標系）
-   ============================================================ */
+/* ===== 拡大縮小 ===== */
 function startResize(e, frame, handleType) {
   e.preventDefault();
 
@@ -2841,6 +2626,16 @@ function cancelCrop(frame) {
   croppingFrame = null;
   cropStartData = null;
 }
+
+/* ============================================================
+   起動時：ノート・サムネイル・見開きページ、すべてに背景画像を適用
+   ============================================================ */
+notebook.style.backgroundImage = `url('${NOTEBOOK_BG_URL}')`;
+spreadPage.style.backgroundColor = '#fdfdf7';
+spreadPage.style.backgroundImage = `url('${NOTEBOOK_BG_URL}')`;
+spreadPage.style.backgroundRepeat = 'no-repeat';
+spreadPage.style.backgroundPosition = 'center';
+spreadPage.style.backgroundSize = '100% 100%';
 </script>
 
 </body>
