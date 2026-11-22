@@ -2638,5 +2638,204 @@ spreadPage.style.backgroundPosition = 'center';
 spreadPage.style.backgroundSize = '100% 100%';
 </script>
 
+<script>
+/* ============================================================
+   GitHub同期（Alex追加分）
+   使い方：このブロック全体を、index.html の </body> の直前に貼るだけ。
+   元のコードには一切手を入れていない（追加のみ）。
+
+   - 保存先: kuranaga15/skechbook の data/book.json
+   - 読み込み: 公開リポジトリなのでトークン不要。起動時、GitHub側のデータが
+     この端末より新しければ、読み込むかどうか確認ダイアログを出す
+   - 保存: ツールパネルに追加される「GH保存」ボタンから。
+     fine-grained PAT（対象リポジトリ: skechbook / Contents: Read and write）が必要
+   - トークンはこの端末のブラウザ（localStorage）にだけ保存される
+   - 保存データの形式は既存の save / road（JSON書き出し・読み込み）と互換
+   ============================================================ */
+(function () {
+  const GH_OWNER = 'kuranaga15';
+  const GH_REPO = 'skechbook';
+  const GH_BRANCH = 'main';
+  const GH_DATA_PATH = 'data/book.json';
+  const GH_TOKEN_KEY = 'sketchbook-gh-token';
+  const LOCAL_UPDATED_KEY = 'sketchbook-local-updatedAt';
+
+  /* ローカルの最終更新時刻を記録するため、元の persistAll を包む */
+  const _persistAll = persistAll;
+  persistAll = function () {
+    _persistAll();
+    try { localStorage.setItem(LOCAL_UPDATED_KEY, new Date().toISOString()); } catch (e) {}
+  };
+
+  /* ===== ツールパネルにボタン追加 ===== */
+  const panel = document.getElementById('toolPanel');
+  const divider = document.createElement('div');
+  divider.className = 'tool-divider';
+  panel.appendChild(divider);
+
+  function makeBtn(label, title) {
+    const d = document.createElement('div');
+    d.className = 'tool-io-btn';
+    d.textContent = label;
+    d.title = title;
+    panel.appendChild(d);
+    return d;
+  }
+  const ghSaveBtn = makeBtn('GH保存', 'GitHubに保存');
+  const ghLoadBtn = makeBtn('GH読込', 'GitHubから読み込み');
+  const ghKeyBtn  = makeBtn('GH鍵', 'GitHubトークンの設定');
+
+  /* ===== トークン管理 ===== */
+  function getToken() {
+    try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch (e) { return ''; }
+  }
+  function askToken() {
+    const t = prompt('GitHubのトークンを貼り付けてください。\n（この端末のブラウザにだけ保存されます。空欄でOKすると削除します）', '');
+    if (t === null) return null;
+    const v = t.trim();
+    try {
+      if (v) localStorage.setItem(GH_TOKEN_KEY, v);
+      else localStorage.removeItem(GH_TOKEN_KEY);
+    } catch (e) {}
+    return v;
+  }
+  function ensureToken() {
+    let t = getToken();
+    if (!t) t = askToken();
+    return t;
+  }
+  ghKeyBtn.addEventListener('click', () => {
+    const t = askToken();
+    if (t) alert('トークンを保存しました。');
+  });
+
+  /* ===== GitHub API ===== */
+  async function ghApi(path, options) {
+    const token = ensureToken();
+    if (!token) throw new Error('トークンが未設定です');
+    const res = await fetch('https://api.github.com' + path, Object.assign({}, options || {}, {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      }
+    }));
+    if (!res.ok) {
+      let msg = '';
+      try { msg = (await res.json()).message || ''; } catch (e) {}
+      throw new Error('GitHub APIエラー ' + res.status + (msg ? '：' + msg : ''));
+    }
+    return res.json();
+  }
+
+  function utf8ToBase64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+    }
+    return btoa(bin);
+  }
+
+  /* ===== 保存（Git Data API経由：大きなファイルでも保存できる） ===== */
+  let ghSaving = false;
+  ghSaveBtn.addEventListener('click', async () => {
+    if (ghSaving) return;
+    if (!ensureToken()) return;
+    ghSaving = true;
+    const oldLabel = ghSaveBtn.textContent;
+    ghSaveBtn.textContent = '保存中';
+    try {
+      pages[currentIndex].frames = collectFramesFromDOM();
+      try { pages[currentIndex].drawing = drawCanvas.toDataURL('image/png'); } catch (e) {}
+      const payload = {
+        formatVersion: 3,
+        exportedAt: new Date().toISOString(),
+        currentIndex: currentIndex,
+        pages: pages
+      };
+      const b64 = utf8ToBase64(JSON.stringify(payload));
+      const base = '/repos/' + GH_OWNER + '/' + GH_REPO;
+      const ref = await ghApi(base + '/git/ref/heads/' + GH_BRANCH);
+      const baseCommit = await ghApi(base + '/git/commits/' + ref.object.sha);
+      const blob = await ghApi(base + '/git/blobs', {
+        method: 'POST',
+        body: JSON.stringify({ content: b64, encoding: 'base64' })
+      });
+      const tree = await ghApi(base + '/git/trees', {
+        method: 'POST',
+        body: JSON.stringify({
+          base_tree: baseCommit.tree.sha,
+          tree: [{ path: GH_DATA_PATH, mode: '100644', type: 'blob', sha: blob.sha }]
+        })
+      });
+      const commit = await ghApi(base + '/git/commits', {
+        method: 'POST',
+        body: JSON.stringify({ message: 'sketchbook sync', tree: tree.sha, parents: [ref.object.sha] })
+      });
+      await ghApi(base + '/git/refs/heads/' + GH_BRANCH, {
+        method: 'PATCH',
+        body: JSON.stringify({ sha: commit.sha })
+      });
+      try { localStorage.setItem(LOCAL_UPDATED_KEY, payload.exportedAt); } catch (e) {}
+      alert('GitHubに保存しました。');
+    } catch (err) {
+      alert('GitHubへの保存に失敗しました。\n' + err.message);
+    } finally {
+      ghSaving = false;
+      ghSaveBtn.textContent = oldLabel;
+    }
+  });
+
+  /* ===== 読み込み ===== */
+  async function fetchGitHubBook() {
+    const url = 'https://raw.githubusercontent.com/' + GH_OWNER + '/' + GH_REPO + '/' + GH_BRANCH + '/' + GH_DATA_PATH + '?t=' + Date.now();
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || !Array.isArray(data.pages) || data.pages.length === 0) return null;
+    return data;
+  }
+
+  function applyBookData(data) {
+    pushUndo();
+    pages = data.pages;
+    currentIndex = Math.min(data.currentIndex || 0, pages.length - 1);
+    renderPage(currentIndex);
+    _persistAll();
+    try { localStorage.setItem(LOCAL_UPDATED_KEY, data.exportedAt || new Date().toISOString()); } catch (e) {}
+  }
+
+  ghLoadBtn.addEventListener('click', async () => {
+    let data = null;
+    try { data = await fetchGitHubBook(); } catch (e) {}
+    if (!data) { alert('GitHubに保存されたデータがまだありません。'); return; }
+    const ok = confirm('GitHubのデータを読み込みますか？\n（今の端末の内容は上書きされます。元に戻すボタンで復元できます）');
+    if (!ok) return;
+    applyBookData(data);
+    alert('読み込みが完了しました。');
+  });
+
+  /* ===== 起動時チェック：GitHub側が新しければ知らせる ===== */
+  async function checkOnStart() {
+    for (let i = 0; i < 30 && (!pages || pages.length === 0); i++) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+    let data = null;
+    try { data = await fetchGitHubBook(); } catch (e) { return; }
+    if (!data) return;
+    const ghTime = Date.parse(data.exportedAt || '') || 0;
+    let localTime = 0;
+    try { localTime = Date.parse(localStorage.getItem(LOCAL_UPDATED_KEY) || '') || 0; } catch (e) {}
+    if (ghTime > localTime) {
+      const ok = confirm('GitHubに、この端末より新しいスケッチブックがあります。読み込みますか？\n（今の端末の内容は上書きされます。元に戻すボタンで復元できます）');
+      if (ok) applyBookData(data);
+    }
+  }
+  window.addEventListener('load', () => setTimeout(checkOnStart, 800));
+})();
+</script>
+
 </body>
 </html>
