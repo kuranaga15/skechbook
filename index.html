@@ -1472,19 +1472,28 @@ function persistDrawing() {
   persistAll();
 }
 
+let drawingLoadSeq = 0;
 function loadDrawingIntoCanvas(dataUrl) {
   /* 消しゴム使用後は ctx.globalCompositeOperation が 'destination-out' に
      残ったままになることがあり、その状態で drawImage すると画像を描く代わりに
      キャンバスを消してしまう。読み込み時は必ず 'source-over' に戻す。 */
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-  ctx.restore();
-  if (!dataUrl) return;
-  const img = new Image();
-  img.onload = () => {
+  const seq = ++drawingLoadSeq;
+  if (!dataUrl) {
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    ctx.restore();
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    if (seq !== drawingLoadSeq) return;
+    /* 先に消してから画像を読み込むと、読み込み完了までの間キャンバスが
+       空になり描画が一瞬消えて見える。画像の用意ができてから、消去と
+       描画を同じフレームでまとめて行う。 */
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     ctx.drawImage(img, 0, 0, drawCanvas.width, drawCanvas.height);
     ctx.restore();
   };
