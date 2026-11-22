@@ -2714,6 +2714,7 @@ spreadPage.style.backgroundSize = '100% 100%';
     const token = ensureToken();
     if (!token) throw new Error('トークンが未設定です');
     const res = await fetch('https://api.github.com' + path, Object.assign({}, options || {}, {
+      cache: 'no-store',
       headers: {
         'Authorization': 'Bearer ' + token,
         'Accept': 'application/vnd.github+json',
@@ -2757,27 +2758,42 @@ spreadPage.style.backgroundSize = '100% 100%';
       };
       const b64 = utf8ToBase64(JSON.stringify(payload));
       const base = '/repos/' + GH_OWNER + '/' + GH_REPO;
-      const ref = await ghApi(base + '/git/ref/heads/' + GH_BRANCH);
-      const baseCommit = await ghApi(base + '/git/commits/' + ref.object.sha);
       const blob = await ghApi(base + '/git/blobs', {
         method: 'POST',
         body: JSON.stringify({ content: b64, encoding: 'base64' })
       });
-      const tree = await ghApi(base + '/git/trees', {
-        method: 'POST',
-        body: JSON.stringify({
-          base_tree: baseCommit.tree.sha,
-          tree: [{ path: GH_DATA_PATH, mode: '100644', type: 'blob', sha: blob.sha }]
-        })
-      });
-      const commit = await ghApi(base + '/git/commits', {
-        method: 'POST',
-        body: JSON.stringify({ message: 'sketchbook sync', tree: tree.sha, parents: [ref.object.sha] })
-      });
-      await ghApi(base + '/git/refs/heads/' + GH_BRANCH, {
-        method: 'PATCH',
-        body: JSON.stringify({ sha: commit.sha })
-      });
+      /* 保存が短時間に連続すると、先行する保存コミットと競合して
+         422 (not a fast forward) になることがある。その場合は最新の
+         先端を取り直して、最大4回まで自動で再試行する。 */
+      let saved = false;
+      let lastErr = null;
+      for (let attempt = 0; attempt < 4 && !saved; attempt++) {
+        try {
+          const ref = await ghApi(base + '/git/ref/heads/' + GH_BRANCH);
+          const baseCommit = await ghApi(base + '/git/commits/' + ref.object.sha);
+          const tree = await ghApi(base + '/git/trees', {
+            method: 'POST',
+            body: JSON.stringify({
+              base_tree: baseCommit.tree.sha,
+              tree: [{ path: GH_DATA_PATH, mode: '100644', type: 'blob', sha: blob.sha }]
+            })
+          });
+          const commit = await ghApi(base + '/git/commits', {
+            method: 'POST',
+            body: JSON.stringify({ message: 'sketchbook sync', tree: tree.sha, parents: [ref.object.sha] })
+          });
+          await ghApi(base + '/git/refs/heads/' + GH_BRANCH, {
+            method: 'PATCH',
+            body: JSON.stringify({ sha: commit.sha })
+          });
+          saved = true;
+        } catch (e) {
+          lastErr = e;
+          if (!/422/.test(e.message)) throw e;
+          await new Promise(r => setTimeout(r, 700));
+        }
+      }
+      if (!saved) throw lastErr || new Error('保存できませんでした');
       try { localStorage.setItem(LOCAL_UPDATED_KEY, payload.exportedAt); } catch (e) {}
       alert('GitHubに保存しました。');
     } catch (err) {
@@ -2814,7 +2830,8 @@ spreadPage.style.backgroundSize = '100% 100%';
     const ok = confirm('GitHubのデータを読み込みますか？\n（今の端末の内容は上書きされます。元に戻すボタンで復元できます）');
     if (!ok) return;
     applyBookData(data);
-    alert('読み込みが完了しました。');
+    alert('読み込みが完了しました。表示を更新します。');
+    setTimeout(() => location.reload(), 500);
   });
 
   /* ===== 起動時チェック：GitHub側が新しければ知らせる ===== */
@@ -2830,7 +2847,7 @@ spreadPage.style.backgroundSize = '100% 100%';
     try { localTime = Date.parse(localStorage.getItem(LOCAL_UPDATED_KEY) || '') || 0; } catch (e) {}
     if (ghTime > localTime) {
       const ok = confirm('GitHubに、この端末より新しいスケッチブックがあります。読み込みますか？\n（今の端末の内容は上書きされます。元に戻すボタンで復元できます）');
-      if (ok) applyBookData(data);
+      if (ok) { applyBookData(data); setTimeout(() => location.reload(), 500); }
     }
   }
   window.addEventListener('load', () => setTimeout(checkOnStart, 800));
