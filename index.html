@@ -251,6 +251,7 @@
   .tool-mode-btn:hover { transform: scale(1.07); }
   .tool-mode-btn.active { background: #4a90e2; color: #fff; }
   .tool-mode-btn.disabled { opacity: 0.3; pointer-events: none; }
+  .tool-mode-btn img { width: 19px; height: 19px; display: block; pointer-events: none; }
 
   .tool-color {
     width: 24px; height: 24px;
@@ -679,16 +680,16 @@
 </div>
 
 <div class="tool-panel" id="toolPanel">
-  <div class="tool-mode-btn" id="layoutToggleBtn" title="UIの配置を切り替え">🔄</div>
+  <div class="tool-mode-btn" id="layoutToggleBtn" title="UIの配置を切り替え"><img src="icons/icon-cycle.svg" alt=""></div>
   <div class="tool-divider"></div>
-  <div class="tool-mode-btn" id="undoBtn" title="元に戻す (Ctrl+Z)">↩</div>
+  <div class="tool-mode-btn" id="undoBtn" title="元に戻す (Ctrl+Z)"><img src="icons/icon-undo.svg" alt=""></div>
   <div class="tool-divider"></div>
-  <div class="tool-mode-btn" id="importImageBtn" title="画像をインポート">🖼️</div>
-  <div class="tool-mode-btn" id="spreadViewBtn" title="拡大表示">📖</div>
+  <div class="tool-mode-btn" id="importImageBtn" title="画像をインポート"><img src="icons/icon-image.svg" alt=""></div>
+  <div class="tool-mode-btn" id="spreadViewBtn" title="拡大表示"><img src="icons/icon-book.svg" alt=""></div>
   <div class="tool-divider"></div>
-  <div class="tool-mode-btn active" id="modeSelectBtn" title="選択・移動モード">🖱</div>
-  <div class="tool-mode-btn" id="modePenBtn" title="ペン">✏️</div>
-  <div class="tool-mode-btn" id="modeEraserBtn" title="消しゴム">🧹</div>
+  <div class="tool-mode-btn active" id="modeSelectBtn" title="選択・移動モード"><img src="icons/icon-cursor.svg" alt=""></div>
+  <div class="tool-mode-btn" id="modePenBtn" title="ペン"><img src="icons/icon-pencil.svg" alt=""></div>
+  <div class="tool-mode-btn" id="modeEraserBtn" title="消しゴム"><img src="icons/icon-eraser.svg" alt=""></div>
   <div class="tool-divider"></div>
     <input type="color" class="tool-color" id="penColor" value="#1a1a1a" title="ペンの色">
   <div class="pen-size-row" id="penSizeRow">
