@@ -995,6 +995,9 @@ let pinchStartTime = 0;
 let pinchMaxDistDelta = 0;
 let pinchMaxMidMove = 0;
 let pinchStartedOnStage = false;
+/* ズームの起点をピンチ位置に合わせるための開始時スナップショット */
+let pinchStartTotalScale = 1;
+let pinchStartCenter = { x: 0, y: 0 };
 
 function distOf(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
 function midOf(p1, p2) { return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }; }
@@ -1012,6 +1015,9 @@ window.addEventListener('pointerdown', (e) => {
     pinchMaxDistDelta = 0;
     pinchMaxMidMove = 0;
     pinchStartedOnStage = !!(pts[0].onStage && pts[1].onStage);
+    pinchStartTotalScale = getViewScale();
+    const stageRect = stage.getBoundingClientRect();
+    pinchStartCenter = { x: stageRect.left + stageRect.width / 2, y: stageRect.top + stageRect.height / 2 };
     isPinching = true;
     if (isDrawing) {
       const elapsedSinceStroke = performance.now() - currentStrokeStartTime;
@@ -1038,8 +1044,12 @@ window.addEventListener('pointermove', (e) => {
     pinchMaxMidMove = Math.max(pinchMaxMidMove, Math.hypot(newMid.x - pinchStartMid.x, newMid.y - pinchStartMid.y));
     const scaleFactor = newDist / pinchStartDist;
     bookUserScale = clamp(pinchStartUserScale * scaleFactor, MIN_USER_SCALE, MAX_USER_SCALE);
-    panX = pinchStartPan.x + (newMid.x - pinchStartMid.x);
-    panY = pinchStartPan.y + (newMid.y - pinchStartMid.y);
+    /* ズームの起点はピンチの中心: 開始時に指の下にあった場所が、拡縮しても
+       指の下に残るよう pan を逆算する (以前はノート中心で拡縮していたため、
+       端でピンチすると中身が外側へ流れたり中心へ寄ったりした) */
+    const ratio = (bookBaseScale * bookUserScale) / pinchStartTotalScale;
+    panX = (newMid.x - pinchStartCenter.x) - (pinchStartMid.x - pinchStartCenter.x - pinchStartPan.x) * ratio;
+    panY = (newMid.y - pinchStartCenter.y) - (pinchStartMid.y - pinchStartCenter.y - pinchStartPan.y) * ratio;
     applyZoomTransform();
   }
 }, { capture: true, passive: false });
