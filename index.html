@@ -1454,10 +1454,21 @@ function persistDrawing() {
 }
 
 function loadDrawingIntoCanvas(dataUrl) {
+  /* 消しゴム使用後は ctx.globalCompositeOperation が 'destination-out' に
+     残ったままになることがあり、その状態で drawImage すると画像を描く代わりに
+     キャンバスを消してしまう。読み込み時は必ず 'source-over' に戻す。 */
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  ctx.restore();
   if (!dataUrl) return;
   const img = new Image();
-  img.onload = () => ctx.drawImage(img, 0, 0, drawCanvas.width, drawCanvas.height);
+  img.onload = () => {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(img, 0, 0, drawCanvas.width, drawCanvas.height);
+    ctx.restore();
+  };
   img.src = dataUrl;
 }
 
