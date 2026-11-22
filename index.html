@@ -985,19 +985,28 @@ let pinchStartUserScale = 1;
 let pinchStartMid = { x: 0, y: 0 };
 let pinchStartPan = { x: 0, y: 0 };
 let activeFrameDragEnd = null;
+/* 二本指タップで戻る: ピンチ開始時の時刻・動きを記録する */
+let pinchStartTime = 0;
+let pinchMaxDistDelta = 0;
+let pinchMaxMidMove = 0;
+let pinchStartedOnStage = false;
 
 function distOf(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
 function midOf(p1, p2) { return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }; }
 
 window.addEventListener('pointerdown', (e) => {
   if (e.pointerType !== 'touch' || spreadEditMode) return;
-  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY, onStage: !!(e.target && e.target.closest && e.target.closest('#stage')) });
   if (touchPointers.size === 2) {
     const pts = [...touchPointers.values()];
     pinchStartDist = distOf(pts[0], pts[1]) || 1;
     pinchStartUserScale = bookUserScale;
     pinchStartMid = midOf(pts[0], pts[1]);
     pinchStartPan = { x: panX, y: panY };
+    pinchStartTime = performance.now();
+    pinchMaxDistDelta = 0;
+    pinchMaxMidMove = 0;
+    pinchStartedOnStage = !!(pts[0].onStage && pts[1].onStage);
     isPinching = true;
     if (isDrawing) {
       const elapsedSinceStroke = performance.now() - currentStrokeStartTime;
@@ -1020,6 +1029,8 @@ window.addEventListener('pointermove', (e) => {
     const pts = [...touchPointers.values()];
     const newDist = distOf(pts[0], pts[1]);
     const newMid = midOf(pts[0], pts[1]);
+    pinchMaxDistDelta = Math.max(pinchMaxDistDelta, Math.abs(newDist - pinchStartDist));
+    pinchMaxMidMove = Math.max(pinchMaxMidMove, Math.hypot(newMid.x - pinchStartMid.x, newMid.y - pinchStartMid.y));
     const scaleFactor = newDist / pinchStartDist;
     bookUserScale = clamp(pinchStartUserScale * scaleFactor, MIN_USER_SCALE, MAX_USER_SCALE);
     panX = pinchStartPan.x + (newMid.x - pinchStartMid.x);
@@ -1030,11 +1041,19 @@ window.addEventListener('pointermove', (e) => {
 
 function releaseTouchPointer(e) {
   if (e.pointerType !== 'touch') return;
+  const wasPinching = isPinching;
   touchPointers.delete(e.pointerId);
   if (touchPointers.size === 0) {
     isPinching = false;
     clampPan();
     applyZoomTransform();
+    /* 二本指タップで戻る: 2本ともほぼ動かず短時間で離れたら undo() */
+    if (wasPinching && pinchStartedOnStage) {
+      const tapDuration = performance.now() - pinchStartTime;
+      if (tapDuration <= 350 && pinchMaxDistDelta <= 12 && pinchMaxMidMove <= 12) {
+        undo();
+      }
+    }
   }
 }
 window.addEventListener('pointerup', releaseTouchPointer, { capture: true });
