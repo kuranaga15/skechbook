@@ -913,8 +913,13 @@ function computeBaseScale() {
 }
 
 function clampPan() {
-  const maxPanX = stage.clientWidth / 2;
-  const maxPanY = stage.clientHeight / 2;
+  /* 以前は画面の半分までしか寄れず、指を離した瞬間にその範囲へ引き戻されて
+     端に吸着するように見えた。ノートの大きさ基準で、端が少し (48px) だけ
+     画面に残る位置までは補正しない。 */
+  const s = getViewScale();
+  const keep = 48;
+  const maxPanX = stage.clientWidth / 2 + (BOOK_W * s) / 2 - keep;
+  const maxPanY = stage.clientHeight / 2 + (BOOK_H * s) / 2 - keep;
   panX = clamp(panX, -maxPanX, maxPanX);
   panY = clamp(panY, -maxPanY, maxPanY);
 }
