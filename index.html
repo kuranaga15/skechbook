@@ -708,7 +708,7 @@
   <div class="tool-delete-page-btn" id="pageDeleteBtn">□消去</div>
   <div class="tool-divider"></div>
   <div class="tool-io-btn" id="exportBtn">save</div>
-  <div class="tool-io-btn" id="importBtn">road</div>
+  <div class="tool-io-btn" id="importBtn">load</div>
 </div>
 
 <input type="file" id="imageImportInput" accept="image/*" multiple style="display:none;">
@@ -2834,7 +2834,7 @@ spreadPage.style.backgroundSize = '100% 100%';
    - 保存先: kuranaga15/skechbook の data/book.json
    - 読み込み: 公開リポジトリなのでトークン不要。起動時、GitHub側のデータが
      この端末より新しければ、読み込むかどうか確認ダイアログを出す
-   - 保存: ツールパネルに追加される「GH保存」ボタンから。
+   - 保存: 既存の「save」ボタンの動作をGitHub保存に差し替えてある（「load」も同様）。
      fine-grained PAT（対象リポジトリ: skechbook / Contents: Read and write）が必要
    - トークンはこの端末のブラウザ（localStorage）にだけ保存される
    - 保存データの形式は既存の save / road（JSON書き出し・読み込み）と互換
@@ -2868,9 +2868,22 @@ spreadPage.style.backgroundSize = '100% 100%';
     panel.appendChild(d);
     return d;
   }
-  const ghSaveBtn = makeBtn('GH保存', 'GitHubに保存');
-  const ghLoadBtn = makeBtn('GH読込', 'GitHubから読み込み');
   const ghKeyBtn  = makeBtn('GH鍵', 'GitHubトークンの設定');
+
+  /* 既存の save / load ボタンはファイル入出力用だったが、中身をGitHub同期に
+     差し替える。元の click リスナーは直接外せないため、要素ごと複製して
+     置き換え、リスナーの付いていない新しい要素にGitHub用の処理を登録する。
+     （この後に出てくる保存・読み込み処理は ghSaveBtn / ghLoadBtn を参照する） */
+  function rewireIoButton(id, label, title) {
+    const old = document.getElementById(id);
+    const btn = old.cloneNode(true);
+    btn.textContent = label;
+    btn.title = title;
+    old.replaceWith(btn);
+    return btn;
+  }
+  const ghSaveBtn = rewireIoButton('exportBtn', 'save', 'GitHubに保存');
+  const ghLoadBtn = rewireIoButton('importBtn', 'load', 'GitHubから読み込み');
 
   /* ===== トークン管理 ===== */
   function getToken() {
