@@ -887,6 +887,10 @@ let currentIndex = 0;
 /* 見開き表示中：ノート本体を見開きビューに移動しているかどうか */
 let spreadEditMode = false;
 
+/* 見開きモードのピンチズーム倍率と位置（ノート本体の transform で適用する） */
+let spreadZoom = 1;
+let spreadPanX = 0, spreadPanY = 0;
+
 let croppingFrame = null;
 let cropStartData = null;
 
@@ -901,7 +905,7 @@ const MAX_USER_SCALE = 8;
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function getViewScale() {
-  if (spreadEditMode) return SPREAD_PAGE_W / BOOK_W;
+  if (spreadEditMode) return (SPREAD_PAGE_W / BOOK_W) * spreadZoom;
   return bookBaseScale * bookUserScale;
 }
 
@@ -1075,6 +1079,84 @@ function releaseTouchPointer(e) {
 }
 window.addEventListener('pointerup', releaseTouchPointer, { capture: true });
 window.addEventListener('pointercancel', releaseTouchPointer, { capture: true });
+
+/* ============================================================
+   見開きモードのピンチズーム
+   通常モードのピンチは zoomLayer を操作するが、見開きではノート本体が
+   別要素に移っていて transform も専用管理のため、こちらで処理する。
+   指の下にある場所が指の下に残るよう、ピンチ開始時の位置を基準にする。
+   ============================================================ */
+const spreadTouchPointers = new Map();
+let spreadPinching = false;
+let spreadPinchStartDist = 0;
+let spreadPinchStartZoom = 1;
+let spreadPinchAnchorX = 0, spreadPinchAnchorY = 0;
+let spreadPinchOriginX = 0, spreadPinchOriginY = 0;
+
+function applySpreadTransform() {
+  const scale = (SPREAD_PAGE_W / BOOK_W) * spreadZoom;
+  notebook.style.transform = `translate(${spreadPanX}px, ${spreadPanY}px) scale(${scale})`;
+}
+
+function clampSpreadPan() {
+  const s = (SPREAD_PAGE_W / BOOK_W) * spreadZoom;
+  const w = BOOK_W * s, h = BOOK_H * s;
+  spreadPanX = clamp(spreadPanX, Math.min(0, SPREAD_PAGE_W - w), Math.max(0, SPREAD_PAGE_W - w));
+  spreadPanY = clamp(spreadPanY, Math.min(0, SPREAD_PAGE_H - h), Math.max(0, SPREAD_PAGE_H - h));
+}
+
+window.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch' || !spreadEditMode) return;
+  spreadTouchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (spreadTouchPointers.size !== 2) return;
+
+  if (isDrawing) {
+    if (performance.now() - currentStrokeStartTime < ACCIDENTAL_STROKE_MS) cancelStrokeAsAccidental();
+    else endStroke();
+  }
+  if (activeFrameDragEnd) { const fn = activeFrameDragEnd; activeFrameDragEnd = null; fn(); }
+
+  const pts = [...spreadTouchPointers.values()];
+  spreadPinching = true;
+  spreadPinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  const midX = (pts[0].x + pts[1].x) / 2;
+  const midY = (pts[0].y + pts[1].y) / 2;
+  spreadPinchStartZoom = spreadZoom;
+  const rect = notebook.getBoundingClientRect();
+  spreadPinchAnchorX = midX - rect.left;
+  spreadPinchAnchorY = midY - rect.top;
+  spreadPinchOriginX = rect.left - spreadPanX;
+  spreadPinchOriginY = rect.top - spreadPanY;
+}, true);
+
+window.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'touch' || !spreadEditMode) return;
+  if (!spreadTouchPointers.has(e.pointerId)) return;
+  spreadTouchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!spreadPinching || spreadTouchPointers.size !== 2) return;
+
+  const pts = [...spreadTouchPointers.values()];
+  const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  const midX = (pts[0].x + pts[1].x) / 2;
+  const midY = (pts[0].y + pts[1].y) / 2;
+  if (spreadPinchStartDist > 0) {
+    spreadZoom = clamp(spreadPinchStartZoom * (dist / spreadPinchStartDist), 0.3, 6);
+  }
+  const ratio = spreadZoom / spreadPinchStartZoom;
+  spreadPanX = (midX - spreadPinchOriginX) - spreadPinchAnchorX * ratio;
+  spreadPanY = (midY - spreadPinchOriginY) - spreadPinchAnchorY * ratio;
+  clampSpreadPan();
+  applySpreadTransform();
+  if (e.cancelable) e.preventDefault();
+}, true);
+
+function spreadTouchPointerEnd(e) {
+  if (e.pointerType !== 'touch') return;
+  spreadTouchPointers.delete(e.pointerId);
+  if (spreadTouchPointers.size < 2) spreadPinching = false;
+}
+window.addEventListener('pointerup', spreadTouchPointerEnd, true);
+window.addEventListener('pointercancel', spreadTouchPointerEnd, true);
 
 stage.addEventListener('wheel', (e) => {
   e.preventDefault();
@@ -1822,6 +1904,7 @@ function renderThumbnails() {
    ============================================================ */
 function openSpreadView() {
   document.body.classList.add('spread-mode');
+  spreadZoom = 1; spreadPanX = 0; spreadPanY = 0;
   updateSpreadPageSize();
   mountNotebookInSpread();
   spreadView.classList.add('show');
@@ -1848,7 +1931,6 @@ function closeSpreadView() {
 }
 
 function mountNotebookInSpread() {
-  const scale = SPREAD_PAGE_W / BOOK_W;
   spreadEditMode = true;
   notebook.classList.add('in-spread');
   notebook.style.top = '0';
@@ -1856,7 +1938,7 @@ function mountNotebookInSpread() {
   notebook.style.width = BOOK_W + 'px';
   notebook.style.height = BOOK_H + 'px';
   notebook.style.transformOrigin = 'top left';
-  notebook.style.transform = `scale(${scale})`;
+  applySpreadTransform();
   spreadPage.appendChild(notebook);
   updateSpreadLabel();
 }
