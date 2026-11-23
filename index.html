@@ -1907,6 +1907,10 @@ function openSpreadView() {
   spreadZoom = 1; spreadPanX = 0; spreadPanY = 0;
   updateSpreadPageSize();
   mountNotebookInSpread();
+  /* 土台側にも同じノート画像が敷かれているため、ズームでノート本体を動かすと
+     画像が二重に見えてしまう。見開き編集中は土台の画像を消しておく。 */
+  spreadPage.style.backgroundImage = 'none';
+  spreadPage.style.backgroundColor = 'transparent';
   spreadView.classList.add('show');
   updateSpreadNavState();
   spreadViewBtn.classList.add('active');
@@ -1921,6 +1925,8 @@ function closeSpreadView() {
     console.warn('描画データの保存に失敗しました', err);
   }
   unmountNotebookFromSpread();
+  spreadPage.style.backgroundImage = `url('${NOTEBOOK_BG_URL}')`;
+  spreadPage.style.backgroundColor = '';
   persistAll();
 
   spreadView.classList.remove('show');
