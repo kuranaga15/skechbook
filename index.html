@@ -1396,6 +1396,19 @@ modeEraserBtn.addEventListener('click', () => setMode('eraser'));
    ============================================================ */
 let isDrawing = false;
 let activePointerId = null;
+
+/* Apple Pencilを使ったことのある端末では、指では描けないようにする。
+   手を画面に置いた時に指へ反応して点が描かれるのを防ぐため。
+   ペンでの入力を一度でも検出したら、その端末では恒常的に有効になる。 */
+const PEN_DETECTED_KEY = 'sketchbook-pen-detected';
+let penDetected = false;
+try { penDetected = localStorage.getItem(PEN_DETECTED_KEY) === '1'; } catch (e) {}
+window.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'pen' && !penDetected) {
+    penDetected = true;
+    try { localStorage.setItem(PEN_DETECTED_KEY, '1'); } catch (err) {}
+  }
+}, true);
 let lastX = 0, lastY = 0;
 let currentStrokeStartTime = 0;
 let strokeTraveledDist = 0;
@@ -1462,6 +1475,7 @@ function canvasPos(e) {
 }
 
 drawCanvas.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch' && penDetected) return;
   if (mode === 'select') return;
   if (isPinching) return;
   if (isDrawing) {
