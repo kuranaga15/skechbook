@@ -694,7 +694,7 @@
     <input type="color" class="tool-color" id="penColor" value="#1a1a1a" title="ペンの色">
   <div class="pen-size-row" id="penSizeRow">
     <div class="tool-size-wrap">
-      <input type="range" class="tool-size" id="penSize" min="1" max="40" value="4" title="太さ">
+      <input type="range" class="tool-size" id="penSize" min="1" max="40" value="1" title="太さ">
     </div>
     <div class="pen-size-presets" id="penSizePresets">
       <div class="pen-size-dot" data-size="1" title="1px"></div>
@@ -773,6 +773,7 @@ penSizePresets.forEach(dot => {
       currentPenSize = val;
     }
     updatePenSizePresetActive();
+    savePenSizes();
   });
 });
 
@@ -784,6 +785,7 @@ penSizeInput.addEventListener('input', () => {
     currentPenSize = val;
   }
   updatePenSizePresetActive();
+  savePenSizes();
 });
 const clearDrawBtn = document.getElementById('clearDrawBtn');
 const undoBtn = document.getElementById('undoBtn');
@@ -1454,11 +1456,33 @@ drawCanvas.addEventListener('pointerup', endStroke);
 drawCanvas.addEventListener('pointerleave', endStroke);
 drawCanvas.addEventListener('pointercancel', endStroke);
 
-let currentPenSize = 4;
+let currentPenSize = 1;
 let currentEraserSize = 12;
 
 function getPenSize() { return currentPenSize; }
 function getEraserSize() { return currentEraserSize; }
+
+/* ペンと消しゴムの太さを端末に記憶し、リロードしても前回の太さで始める。
+   初期値はペンが最小の1 (保存済みの値があればそちらを優先)。 */
+const PEN_SIZE_STORAGE_KEY = 'sketchbook-pen-sizes';
+function savePenSizes() {
+  try {
+    localStorage.setItem(PEN_SIZE_STORAGE_KEY, JSON.stringify({ pen: currentPenSize, eraser: currentEraserSize }));
+  } catch (e) { /* 保存できなくても描画には影響しない */ }
+}
+(function restorePenSizes() {
+  try {
+    const raw = localStorage.getItem(PEN_SIZE_STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      const pen = parseFloat(saved.pen);
+      const eraser = parseFloat(saved.eraser);
+      if (Number.isFinite(pen)) currentPenSize = clamp(pen, 1, 40);
+      if (Number.isFinite(eraser)) currentEraserSize = clamp(eraser, 1, 40);
+    }
+  } catch (e) { /* 読めなければ初期値のまま */ }
+  updateSizeUIForMode();
+})();
 
 function applyStrokeStyle() {
   ctx.lineCap = 'round';
