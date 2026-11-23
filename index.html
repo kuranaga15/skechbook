@@ -1313,6 +1313,7 @@ modeEraserBtn.addEventListener('click', () => setMode('eraser'));
    手書き描画処理
    ============================================================ */
 let isDrawing = false;
+let activePointerId = null;
 let lastX = 0, lastY = 0;
 let currentStrokeStartTime = 0;
 let strokeTraveledDist = 0;
@@ -1381,9 +1382,22 @@ function canvasPos(e) {
 drawCanvas.addEventListener('pointerdown', (e) => {
   if (mode === 'select') return;
   if (isPinching) return;
+  if (isDrawing) {
+    /* 描いている途中で2本目の指が触れたら、ジェスチャーが始まったものとして
+       線をここで終える。見開きモードではピンチ判定が働かないため、ここで
+       止めないと2本の指の動きの間でペンが暴れてしまう。 */
+    if (e.cancelable) e.preventDefault();
+    if (performance.now() - currentStrokeStartTime < ACCIDENTAL_STROKE_MS) {
+      cancelStrokeAsAccidental();
+    } else {
+      endStroke();
+    }
+    return;
+  }
   if (e.cancelable) e.preventDefault();
   pushUndo();
   isDrawing = true;
+  activePointerId = e.pointerId;
   currentStrokeStartTime = performance.now();
   strokeTraveledDist = 0;
   lastMoveTime = currentStrokeStartTime;
@@ -1403,7 +1417,7 @@ drawCanvas.addEventListener('pointerdown', (e) => {
 }, { passive: false });
 
 drawCanvas.addEventListener('pointermove', (e) => {
-  if (!isDrawing) return;
+  if (!isDrawing || e.pointerId !== activePointerId) return;
   if (e.cancelable) e.preventDefault();
   const p = canvasPos(e);
   const segLen = Math.hypot(p.x - lastX, p.y - lastY);
@@ -1437,6 +1451,7 @@ drawCanvas.addEventListener('pointermove', (e) => {
 function cancelStrokeAsAccidental() {
   if (!isDrawing) return;
   isDrawing = false;
+  activePointerId = null;
   if (undoStack.length) {
     undoStack.pop();
     updateUndoButtonState();
@@ -1447,14 +1462,19 @@ function cancelStrokeAsAccidental() {
 function endStroke() {
   if (!isDrawing) return;
   isDrawing = false;
+  activePointerId = null;
   if (mode === 'pen') {
     drawPenBlob(lastX, lastY, (getPenSize() / 2) * PEN_BLOB_SCALE * CANVAS_SCALE);
   }
   persistDrawing();
 }
-drawCanvas.addEventListener('pointerup', endStroke);
-drawCanvas.addEventListener('pointerleave', endStroke);
-drawCanvas.addEventListener('pointercancel', endStroke);
+function endStrokeFromEvent(e) {
+  if (activePointerId !== null && e.pointerId !== activePointerId) return;
+  endStroke();
+}
+drawCanvas.addEventListener('pointerup', endStrokeFromEvent);
+drawCanvas.addEventListener('pointerleave', endStrokeFromEvent);
+drawCanvas.addEventListener('pointercancel', endStrokeFromEvent);
 
 let currentPenSize = 1;
 let currentEraserSize = 12;
